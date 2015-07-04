@@ -1,4 +1,4 @@
-# OVPNUAM - OpenVPN USers Access Manager
+# OVPNUAM - OpenVPN Users Access Manager
 
 This projected is licensed under the terms of the MIT license
 

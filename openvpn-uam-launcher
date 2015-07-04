@@ -1,0 +1,165 @@
+#!/usr/bin/python3
+# -*- coding: utf8 -*-
+
+# This file is a part of OpenVPN-UAM
+#
+# Copyright (c) 2015 Pierre GINDRAUD
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+"""OpenVPN UAM launcher class
+
+This class provide a simple launcher example for the OpenVPNUAM module
+The module is run according to parameters whose are given to this script by
+command line
+"""
+
+# System imports
+import getopt
+import logging
+import sys
+
+# Projet Import
+# Try to import from current directory
+try:
+  import OpenVPNUAM
+except ImportError:
+  sys.path.insert(1, "/usr/share")
+  try:
+    import OpenVPNUAM
+  except ImportError:
+    print("Impossible to load the OpenVPNUAM")
+    sys.exit(1)
+
+# Global project declarations
+logger = logging.getLogger('openvpnuam-launcher')
+
+
+class OpenVPNUAMLauncher:
+  """A simple launcher class of the netsav program, run a netsav instance with custom args
+
+  Use a both system shell arg and static configuration to run a netsav instance
+  See usage function below
+  """
+
+  def __init__(self):
+    """Constructor : Build a launcher for netsav
+    """
+    self.__program = None
+    self.__conf = dict()
+    self.__conf['background'] = False
+    self.__conf['pid_file'] = '/var/run/openvpn-uam.pid'
+    self.__conf['config_file'] = '/etc/openvpn-uam.conf'
+    self.__conf['log_level'] = 'INFO'
+
+  @staticmethod
+  def showVersion():
+    """Print the program version
+    """
+    print("OpenVPN User Access Management version v" + OpenVPNUAM.version)
+
+  def showUsage(self):
+    """Prints command line options
+    """
+    print('Usage: ' + sys.argv[0] + ' [OPTIONS...]')
+    print("""
+OpenVPN User Access Management v""" + OpenVPNUAM.version + """
+
+Options :
+    -b, --background    run in the background (daemonize)
+    -f, --foreground    run the server on the foreground
+                          (do not daemonize) (default)
+    -d, --debug         show more debug information about server running
+    -c <FILE>           path of the configuration file
+                          (default to """ + self.__conf['config_file'] + """)
+    -p <FILE>           path of the pidfile
+                          (default to """ + self.__conf['pid_file'] + """)
+    -h, --help          display this help message
+    -V, --version       print the version
+
+Return code :
+    0 Success
+    1 Unable to load the module OpenVPNUAM
+    2 Bad argument
+    3 Unable to load configuration file
+
+""")
+
+  def __parseCmdLineOptions(self, options_list):
+    """Parse input main options, and apply rules
+
+    @param[dict] options_list : array of option key => value
+    """
+    for opt in options_list:
+      if opt[0] in ['-b', '--background']:
+        self.__conf['background'] = True
+      if opt[0] in ['-f', '--foreground']:
+        self.__conf['background'] = False
+      if opt[0] == '-c':
+        self.__conf['config_file'] = opt[1]
+      if opt[0] == '-p':
+        self.__conf['pid_file'] = opt[1]
+      if opt[0] in ['-d', '--debug']:
+        self.__conf['log_level'] = 'DEBUG'
+      if opt[0] in ['-h', '--help']:
+        self.showUsage()
+        sys.exit(0)
+      if opt[0] in ['-V', '--version']:
+        OpenVPNUAMLauncher.showVersion()
+        sys.exit(0)
+
+  def start(self, argv):
+    """ Entry point of the launcher
+
+    @param[dict] argv : array of shell options given by main function
+    """
+    # read the only allowed command line options
+    try:
+      cmd_short_opts = 'hbfdVp:c:'
+      cmd_long_opts = ['help', 'version', 'background', 'foreground', 'debug']
+      given_options_list, args = getopt.getopt(argv[1:],
+                                               cmd_short_opts,
+                                               cmd_long_opts)
+    except getopt.GetoptError as e:
+      logger.error(e)
+      self.showUsage()
+      return 2
+    except Exception as e:
+      self.__logger.error('Problem during parameters interpretation :')
+      self.__logger.error('   ' + str(e))
+      return 1
+
+    self.__parseCmdLineOptions(given_options_list)
+
+    try:
+      self.__program = OpenVPNUAM.OpenVPNUAM(self.__conf['background'],
+                                             self.__conf['log_level'])
+      if not self.__program.load(self.__conf['config_file']):
+        logger.error('Unable to load configuration file')
+        return 3
+      return self.__program.start(self.__conf['pid_file'])
+    except Exception as e:
+      logger.exception(e)
+      return 1
+
+##
+# Run launcher as the main program
+if __name__ == '__main__':
+  launcher = OpenVPNUAMLauncher()
+  sys.exit(launcher.start(sys.argv))
