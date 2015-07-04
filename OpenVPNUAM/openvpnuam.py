@@ -2,7 +2,7 @@
 
 # This file is a part of OpenVPN-UAM
 #
-# Copyright (c) 2015 Pierre GINDRAUD
+# Copyright (c) 2015 Pierre GINDRAUD - Thomas PAJON
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -37,7 +37,7 @@ import sys
 
 
 # Projet Imports
-from .config import OVPNUAMConfigParser
+#from .config import OVPNUAMConfigParser
 
 # Global project declarations
 g_sys_log = logging.getLogger('openvpn-uam')
