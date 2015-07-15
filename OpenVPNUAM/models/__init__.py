@@ -22,5 +22,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Modules - modules required to openvpn uam program
+"""Models
+
+These class describe models for database entities used by program
 """
+from .user import User
+from .hostname import Hostname
+
+__all__ = ['user', 'hostname']
