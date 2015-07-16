@@ -64,7 +64,7 @@ class OpenVPNUAMLauncher:
     self.__program = None
     self.__conf = dict()
     self.__conf['background'] = False
-    self.__conf['pid_file'] = '/var/run/openvpn-uam.pid'
+    self.__conf['pid_file'] = None
     self.__conf['config_file'] = '/etc/openvpn-uam.conf'
     self.__conf['log_level'] = 'INFO'
 
@@ -153,7 +153,7 @@ Return code :
       if not self.__program.load(self.__conf['config_file']):
         logger.error('Unable to load configuration file')
         return 3
-      return self.__program.start(self.__conf['pid_file'])
+      return not self.__program.start(self.__conf['pid_file'])
     except Exception as e:
       logger.exception(e)
       return 1
