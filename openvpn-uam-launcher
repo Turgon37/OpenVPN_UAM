@@ -43,15 +43,16 @@ except ImportError:
   sys.path.insert(1, "/usr/share")
   try:
     import OpenVPNUAM
-  except ImportError:
-    print("Impossible to load the OpenVPNUAM")
+  except ImportError as e:
+    print("Impossible to load the OpenVPNUAM module")
+    print(str(e))
     sys.exit(1)
 
 # Global project declarations
 logger = logging.getLogger('openvpnuam-launcher')
 
 
-class OpenVPNUAMLauncher:
+class OpenVPNUAMLauncher(object):
   """A simple launcher class of the netsav program, run a netsav instance with custom args
 
   Use a both system shell arg and static configuration to run a netsav instance
