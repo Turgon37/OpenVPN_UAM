@@ -47,7 +47,7 @@ g_sys_log = logging.getLogger('openvpn-uam.config')
 class OVPNUAMConfigParser(ConfigParser):
   """(extend ConfigParser) Set specific function for configuration file parsing
 
-  Refer to the config file provide some function to parse directly the config 
+  Refer to the config file provide some function to parse directly the config
   file as project's needed. This class give highlevel configuration file reading
   """
 
@@ -55,6 +55,7 @@ class OVPNUAMConfigParser(ConfigParser):
   #list of logging level available by configuration file
   LOGLEVEL_MAP = ['ERROR', 'WARN', 'INFO', 'DEBUG']
   MAIN_SECTION = 'main'
+  DATABASE_SECTION = 'database'
 
   def __init__(self):
     """Constructor : init a new config parser
@@ -95,18 +96,18 @@ class OVPNUAMConfigParser(ConfigParser):
   def getPidPath(self, default='/var/run/openvpn-uam.pid'):
     """Return path to pid file option
 
-    @param default [string] : the default value to return if nothing is found
+    @param default [str] : the default value to return if nothing is found
                             in the config file
-    @return [string] : the logtarget
+    @return [str] : the logtarget
     """
     return self.get(self.MAIN_SECTION, 'pid', fallback=default)
 
   def getLogLevel(self, default='INFO'):
     """Return loglevel option from configuration file
 
-    @param default [string] : the default value to return if nothing is found
+    @param default [str] : the default value to return if nothing is found
                             in the config file
-    @return [string] : the loglevel
+    @return [str] : the loglevel
     """
     val = self.get(self.MAIN_SECTION, 'log_level', fallback=default)
     if val not in self.LOGLEVEL_MAP:
@@ -119,9 +120,9 @@ class OVPNUAMConfigParser(ConfigParser):
   def getLogTarget(self, default='STDOUT'):
     """Return logtarget option
 
-    @param default [string] : the default value to return if nothing is found
+    @param default [str] : the default value to return if nothing is found
                             in the config file
-    @return [string] : the logtarget
+    @return [str] : the logtarget
     """
     return self.get(self.MAIN_SECTION, 'log_target', fallback=default)
 
@@ -144,7 +145,7 @@ class OVPNUAMConfigParser(ConfigParser):
   def getGid(self):
     """Return the gid (int) option from configfile
 
-    @return(int/None): integer : the numeric value of group id
+    @return [int/None] : integer : the numeric value of group id
                         None: if group is not defined
     """
     group = self.get(self.MAIN_SECTION, 'group', fallback=None)
@@ -156,3 +157,19 @@ class OVPNUAMConfigParser(ConfigParser):
       g_sys_log.error("Incorrect groupname '%s' read in configuration file",
                     group)
       return None
+
+  def getDatabaseAdapter(self, default='default'):
+    """Return the name of the database adapter to use
+
+    @return [str]: the name of the python file in database/ directory to use
+    as database adapter
+    """
+    return self.get(self.DATABASE_SECTION, 'adapter', fallback=default)
+
+  def getItemsFromSection(self, section):
+    """Return all options item in section given by parameter
+
+    @param section [str] the section from which to obtains configuration items
+    @return [dict] all item in section in dict format
+    """
+    return dict(self.items(section))

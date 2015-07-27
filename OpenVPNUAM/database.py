@@ -108,7 +108,7 @@ class Database(object):
 
     try:
       # open database
-      if adapter.open(dict(self.__cp.items(adapter.getName()))):
+      if adapter.open(self.__cp.getItemsFromSection(adapter.getName())):
         g_sys_log.debug('Opened database type "' + adapter.getName() + '"')
         self.__status = self.OPEN
         return True
