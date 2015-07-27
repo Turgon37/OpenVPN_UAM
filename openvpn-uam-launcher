@@ -60,7 +60,7 @@ class OpenVPNUAMLauncher(object):
   """
 
   def __init__(self):
-    """Constructor : Build a launcher for netsav
+    """Constructor : Build a launcher for main program
     """
     self.__program = None
     self.__conf = dict()
