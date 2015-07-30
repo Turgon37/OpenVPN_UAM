@@ -28,19 +28,26 @@ Python class for MySQL database support
 """
 
 # System import
+import logging
+
 try:
   import MySQLdb
 except ImportError:
   raise Exception("Module MySQLdb required " +
-  " http://mysql-python.sourceforge.net/MySQLdb.html")
-  
+                  " http://mysql-python.sourceforge.net/MySQLdb.html")
+
 try:
   import MySQLdb.cursors
 except ImportError:
   raise Exception("Module MySQLdb failed to import dependencies")
 
 # Project imports
-from . import *
+from .. import *
+from .Table import *
+
+# Global project declarations
+g_sys_log = logging.getLogger('openvpn-uam.database.mysql')
+
 
 class Connector(Adapter):
   """This version of Connector use a MySQL Adapter to read/write data from/into
@@ -99,10 +106,10 @@ class Connector(Adapter):
   def close(self):
     """Close properly the database"""
     self.__connection.close()
-  
-  def __queryHelper(self, cursor, query):
+
+  def __queryHelper(self, cursor, query, args=None):
     """Execute a basic query on the given cursor
-    
+
     This helper execute a query on the given cursor and handle error reporting
     if exception occur
     @param cursor [MySQLdb.cursors] the cursor on which to execute the query
@@ -110,19 +117,46 @@ class Connector(Adapter):
     @return [MySQLdb.cursors] the cursor after query execution or None if fail
     """
     try:
-      cursor.execute(query)
+      if args is None:
+        cursor.execute(query)
+      else:
+        cursor.execute(query, args)
     except MySQLdb.ProgrammingError as e:
-      self._fatal_('error_database.mysql.fatal')
+      helper_log_fatal(g_sys_log, 'error_database.mysql.fatal')
       return None
     except Exception as e:
       g_sys_log.error('Error during execution of this query ' + str(e))
       return None
     return cursor
-  
-  def __queryDict(self, query):
+
+  def __queryDict(self, query, args=None):
     """Execute a query with a DictCursor
-    
+
     @param [str] query : the query to execute
     """
     cur = self.__connection.cursor(MySQLdb.cursors.DictCursor)
-    return self.__queryHelper(cur, query)
+    return self.__queryHelper(cur, query, args)
+
+  def getUserList(self):
+    cur = self.__queryDict('SELECT ' + MysqlTableUser.getSelectColumn() +
+                           'FROM ' + MysqlTableUser.getName())
+    l_user = []
+    if cur is not None:
+      for l in cur:
+        u = Model.User(None, None)
+        u.load(l, self.getHostnameListFromUserId(l['id']))
+        l_user.append(u)
+    return l_user
+
+  def getHostnameListFromUserId(self, id):
+    l_host = []
+    cur = self.__queryDict('SELECT ' + MysqlTableHostname.getSelectColumn() +
+                           ' FROM ' + MysqlTableHostname.getName() +
+                           ' WHERE ' + MysqlTableHostname.getForeign() + '= %s',
+                           (id,))
+    if cur is not None:
+      for l in cur:
+        h = Model.Hostname(None)
+        h.load(l)
+        l_host.append(h)
+    return l_host

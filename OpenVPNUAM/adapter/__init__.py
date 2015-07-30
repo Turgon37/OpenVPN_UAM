@@ -26,16 +26,9 @@
 adapter
 """
 
-# System import
-import datetime
-import logging
-import traceback
-
 # Project imports
 from .. import models as Model
-
-# Global project declarations
-g_sys_log = logging.getLogger('openvpn-uam.database.mysql')
+from ..helpers import *
 
 class Adapter(object):
   """This is an abstract class that describe a basic database adapter"""
@@ -59,12 +52,12 @@ class Adapter(object):
   def getName(self):
     """Return the name of this adapter
 
-    @return [str] the
+    @return [str] the name of this adapter
     """
     return self.name
 
   def getType(self):
-    """
+    """Return the type of this adapter
 
     @return [integer] the Adapter constants that desribe the type
     """
@@ -88,15 +81,3 @@ class Adapter(object):
     that properly close the database
     """
     raise NotImplementedError()
-    
-  def _fatal_(self, file='error'):
-    error_out = open(file, 'a')
-    error_out.write('----------------------------------------------------\n')
-    error_out.write('ERROR AT ' + str(datetime.datetime.today()) + ' => \n')
-    traceback.print_stack(file=error_out)
-    error_out.write(traceback.format_exc())
-    error_out.write('----------------------------------------------------')
-    error_out.write("\n\n\n\n")
-    error_out.close()
-    g_sys_log.error('FATAL ERROR : contact developer and send him the file "' +
-                    file + '"')
