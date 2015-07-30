@@ -28,11 +28,12 @@
 import datetime
 import traceback
 
+
 def helper_log_fatal(logger, file='error'):
   """This is a helper for logging a fatal error
-  
-  @param logger
-  @param file [str] OPTIONNAL :
+
+  @param logger [logging.logger] : the logger to use to make message
+  @param file [str] OPTIONNAL : the file into write stacktrace
   """
   error_out = open(file, 'a')
   error_out.write('----------------------------------------------------\n')
@@ -43,4 +44,4 @@ def helper_log_fatal(logger, file='error'):
   error_out.write("\n\n\n\n")
   error_out.close()
   logger.error('FATAL ERROR : contact developer and send him the file "' +
-                  file + '"')
+               file + '"')

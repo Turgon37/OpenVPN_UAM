@@ -51,8 +51,8 @@ class OVPNUAMConfigParser(ConfigParser):
   file as project's needed. This class give highlevel configuration file reading
   """
 
-  # CLASS CONSTANTS
-  #list of logging level available by configuration file
+# CLASS CONSTANTS
+# list of logging level available by configuration file
   LOGLEVEL_MAP = ['ERROR', 'WARN', 'INFO', 'DEBUG']
   MAIN_SECTION = 'main'
   DATABASE_SECTION = 'database'
@@ -139,7 +139,7 @@ class OVPNUAMConfigParser(ConfigParser):
       return pwd.getpwnam(user).pw_uid
     except KeyError:
       g_sys_log.error("Incorrect username '%s' read in configuration file",
-                    user)
+                      user)
       return None
 
   def getGid(self):
@@ -155,7 +155,7 @@ class OVPNUAMConfigParser(ConfigParser):
       return grp.getgrnam(group).gr_gid
     except KeyError:
       g_sys_log.error("Incorrect groupname '%s' read in configuration file",
-                    group)
+                      group)
       return None
 
   def getDatabaseAdapter(self, default='default'):

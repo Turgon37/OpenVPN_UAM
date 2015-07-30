@@ -38,12 +38,13 @@ import sys
 
 # Projet Imports
 from .config import OVPNUAMConfigParser
+from .database import Database
 
 # Global project declarations
 g_sys_log = logging.getLogger('openvpn-uam')
 
 
-class OpenVPNUAM:
+class OpenVPNUAM(object):
   """Build an instance of the openvpn uam program class
 
   This instance must be configured with load() before launched by start() call
@@ -137,7 +138,7 @@ class OpenVPNUAM:
     except OSError as e:
       g_sys_log.error("Unable to remove PID file: %s", e)
 
-    g_sys_log.info("Exiting netsav")
+    g_sys_log.info("Exiting OUAM")
     return True
 
   def run(self):
