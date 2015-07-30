@@ -38,6 +38,7 @@ from .adapter import Adapter
 # Global project declarations
 g_sys_log = logging.getLogger('openvpn-uam.database')
 
+
 class Database(object):
   """Build an instance of the model program class
   """
@@ -53,10 +54,11 @@ class Database(object):
     self.__cp = confparser
     self.__adapter = None
     self.__status = self.UNLOAD
+    self.__l_user = None
 
   def __newAdapter(self):
     """Load a new instance of selected adapter and return it
-    
+
     This function try to import and load a new adapter object from
     the name given in configuration file.
     @return [object] the new adapter instance
@@ -103,7 +105,7 @@ class Database(object):
     # adapter config checking
     if not self.__cp.has_section(adapter.getName()):
       g_sys_log.error('Configuration file require a section with name "' +
-                            adapter.getName() + '"')
+                      adapter.getName() + '"')
       return False
 
     try:
@@ -115,7 +117,7 @@ class Database(object):
       else:
         # loading error
         g_sys_log.error('Adapter "' + adapter.getName() +
-                      '" failed to open database')
+                        '" failed to open database')
         return False
     except KeyError as e:
       g_sys_log.error('Adapter "' + adapter.getName() + '" require "' +
@@ -132,9 +134,19 @@ class Database(object):
     @return [boolean] : a boolean indicates if the operation have succeded or
     not
     """
+    assert self.__status == self.OPEN
     if self.__adapter.close():
       self.__status = self.CLOSE
 
-  def test(self):
-    self.__adapter.test()
+  def getUserList(self):
+    """Call the adapter to return the current user list
 
+    @return [list<User>] the current list of user
+    """
+    assert self.__adapter is not None
+    assert self.__status == self.OPEN
+    # TODO polling
+    if self.__l_user is None:
+      self.__l_user = self.__adapter.getUserList()
+
+    return self.__l_user
