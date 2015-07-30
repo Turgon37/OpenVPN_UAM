@@ -31,9 +31,13 @@ its attributes.
 
 # System imports
 import datetime
+import logging
+
+# Global project declarations
+g_sys_log = logging.getLogger('openvpn-uam.model.hostname')
 
 
-class Hostname:
+class Hostname(object):
   """Build an instance of the hostname program class
   """
 
@@ -43,14 +47,33 @@ class Hostname:
     @param name [str] : the name of the hostname
     """
     # database model
-    self.__id = None
-    self.__name = name
-    self.__is_enable = False
-    self.__is_online = False
-    self.__creation_time = datetime.datetime.today()
-    self.__update_time = None
+    self._id = None
+    self._name = name
+    self._is_enabled = False
+    self._is_online = False
+    self._creation_time = datetime.datetime.today()
+    self._update_time = None
     # python model
     self.__lst_certificate = []
+
+  def load(self, attributs):
+    """Load an hostname entity with attributs
+
+    @param attributs [dict] : a key-value dict which contains attributs
+    to set to this Hostname object
+    """
+    # ASSERT
+    assert self._id is None
+
+    if self._id is not None:
+      return
+    if isinstance(attributs, dict):
+      # loop for each given attributes
+      for key in attributs:
+        if hasattr(self, "_" + key):
+          setattr(self, "_" + key, attributs[key])
+        else:
+          g_sys_log.error('Unknown attribute from source "' + key + '"')
 
 # Getters methods
   def getName(self):
@@ -58,22 +81,22 @@ class Hostname:
 
     @return [str] : the name of the hostname
     """
-    return self.__name
+    return self._name
 
-  def getDateCreation(self):
+  def getCreationTime(self):
     """Get the creation of the hostname
 
     @return [datetime] : the creation date of the hostname
     """
-    return self.__date_creation
+    return self._creation_time
 
-  def getDateUpdate(self):
+  def getUpdateTime(self):
     """getDateUpdate(): Get the date of the last update of
     the hostname
 
     @return [datetime] : date of the last update of the hostname
     """
-    return self.__date_update
+    return self._update_time
 
   def getActivationState(self):
     """getActivationState(): get the activation state of the
@@ -81,14 +104,14 @@ class Hostname:
 
     @return [boolean] : the activation state of the hostname
     """
-    return self.__is_enable
+    return self._is_enabled
 
   def getStatus(self):
     """getStatus(): Get if the hostname is online
 
     @return [boolean] : status of the hostname
     """
-    return self.__is_online
+    return self._is_online
 
 # Setters methods
 
@@ -97,53 +120,64 @@ class Hostname:
 
     @param name [str] : name of the hostname
     """
-    self.__name = name
-    self.__update()
+    self._name = name
+    self._update()
 
   def __update(self):
     """update(): Change the date of the last update of the
     hostname
     """
-    self.__date_update = datetime.today()
+    self._update_time = datetime.datetime.today()
 
   def enable(self):
     """enable(): Set hostname enable
     """
-    self.__is_enable = True
+    self._is_enable = True
     self.__update()
 
   def disable(self):
     """disable(): Set hostname disable
     """
-    self.__is_enable = False
+    self._is_enabled = False
     self.__update()
 
   def setOnline(self):
     """setOnline(): Change the status of the hostname to
     online
     """
-    self.__is_online = True
+    self._is_online = True
     self.__update()
 
   def setOffline(self):
     """setOffline(): Change the status of the hostname to
     offline
     """
-    self.__is_online = False
+    self._is_online = False
     self.__update()
-    
-    
-  def toString(self):
+
+  def __str__(self):
     """[DEBUG] Produce a description string for this user instance
-    
+
     @return [str] a formatted string that describe this user
     """
-    content = ("  HOSTNAME (" + str(self.__id) + ")" +
-              "\n    NAME = " + str(self.__name) +
-              "\n    STATUS = " + str(self.__is_enable) +
-              "\n    ONLINE STATUS = " + str(self.__is_online) +
-              "\n    CREATED ON = " + str(self.__creation_time) +
-              "\n    UPDATED ON = " + str(self.__update_time))
+    content = ("  HOSTNAME (" + str(self._id) + ")" +
+               "\n    NAME = " + str(self._name) +
+               "\n    STATUS = " + str(self._is_enabled) +
+               "\n    ONLINE STATUS = " + str(self._is_online) +
+               "\n    CREATED ON = " + str(self._creation_time) +
+               "\n    UPDATED ON = " + str(self._update_time))
     for c in self.__lst_certificate:
-      content += c.toString()
+      content += str(c)
     return content
+
+  def __repr__(self):
+    """[DEBUG] Produce a list of attribute as string for this hostname instance
+
+    @return [str] a formatted string that describe this hostname
+    """
+    return ("[id(" + str(self._id) + ")," +
+            " name(" + str(self._name) + ")," +
+            " enable(" + str(self._is_enabled) + ")," +
+            " createdon(" + str(self._creation_time) + ")," +
+            " updatedon(" + str(self._update_time) + ")," +
+            " certificate(" + str(len(self.__lst_certificate)) + ")]")

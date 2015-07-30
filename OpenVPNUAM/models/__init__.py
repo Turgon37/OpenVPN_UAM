@@ -24,7 +24,7 @@
 
 """Models
 
-These class describe models for database entities used by program
+These class describes models for database entities used by program
 """
 from .user import User
 from .hostname import Hostname
