@@ -27,6 +27,11 @@
 This program class is an accesser to several programs classes contains openvpn
 uam's datas. It manages these datas and ensures their integrity. It also allows
 the updating of these datas.
+
+This class aims to be a proxy between real data and main routine.
+Real data are stored into some technology and are accessible by using specific
+adapter. This class provide a little cache in case where the loaded adapter
+where no longer to able to get us new data.
 """
 
 # System imports
@@ -59,7 +64,7 @@ class Database(object):
     self.__l_user = None
     # number of second from epoch at the last adapter polling
     self.__poll_ref = 0.0
-    # number of second between two poll
+    # number of second between two consecutive poll from adapter
     self.__poll_time = 600.0
     
   def load(self):
@@ -74,11 +79,12 @@ class Database(object):
       g_sys_log.debug('Use default poll time of ' + str(self.__poll_time))
     else:
       try:
-        v = float(self.__cp.getItems(self.__cp.DATABASE_SECTION)['poll_time'])
-        self.__poll_time = v
+        self.__poll_time = float(
+            self.__cp.getItems(self.__cp.DATABASE_SECTION)['poll_time'])
       except ValueError as e:
         g_sys_log.error('Invalid format for "poll_time" option')
         return False
+    self.__status = self.CLOSE
     return True
 
   def __newAdapter(self):
@@ -120,6 +126,7 @@ class Database(object):
     @return [boolean] : a boolean indicates if the operation have succeded or
     not
     """
+    assert self.__status == self.CLOSE
     if self.__adapter is None:
       self.__adapter = self.__newAdapter()
 
@@ -168,10 +175,16 @@ class Database(object):
 
     @return [list<User>] the current list of user
     """
-    assert self.__adapter is not None
     assert self.__status == self.OPEN
     # refresh the internal cached list by ask again the adapter
     if time.time() - self.__poll_ref >= self.__poll_time:
-      self.__l_user = self.__adapter.getUserList()
-      self.__poll_ref = time.time()
+      l_u = self.__adapter.getUserList()
+      # error in data retrieving from DB
+      if l_u is not None:
+        self.__poll_ref = time.time()
+        # set the reference to self into all user entities
+        for user in l_u:
+          user.setDb(self)
+        self.__l_user = l_u
+
     return self.__l_user
