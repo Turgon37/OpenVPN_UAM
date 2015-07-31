@@ -55,6 +55,8 @@ class Hostname(object):
     self._update_time = None
     # python model
     self.__lst_certificate = []
+    # internal link to database for self update
+    self.__db = None
 
   def load(self, attributs):
     """Load an hostname entity with attributs
@@ -62,18 +64,14 @@ class Hostname(object):
     @param attributs [dict] : a key-value dict which contains attributs
     to set to this Hostname object
     """
-    # ASSERT
     assert self._id is None
-
-    if self._id is not None:
-      return
-    if isinstance(attributs, dict):
-      # loop for each given attributes
-      for key in attributs:
-        if hasattr(self, "_" + key):
-          setattr(self, "_" + key, attributs[key])
-        else:
-          g_sys_log.error('Unknown attribute from source "' + key + '"')
+    assert isinstance(attributs, dict)
+    # loop for each given attributes
+    for key in attributs:
+      if hasattr(self, "_" + key):
+        setattr(self, "_" + key, attributs[key])
+      else:
+        g_sys_log.error('Unknown attribute from source "' + key + '"')
 
 # Getters methods
   def getName(self):
@@ -102,27 +100,36 @@ class Hostname(object):
     """getActivationState(): get the activation state of the
     hostname
 
-    @return [boolean] : the activation state of the hostname
+    @return [bool] : the activation state of the hostname
     """
     return self._is_enabled
 
   def getStatus(self):
     """getStatus(): Get if the hostname is online
 
-    @return [boolean] : status of the hostname
+    @return [bool] : status of the hostname
     """
     return self._is_online
 
 # Setters methods
-
   def setName(self, name):
     """setName(): Change the name of the hostname
 
     @param name [str] : name of the hostname
     """
     self._name = name
-    self._update()
+    self.__update()
 
+  def setDb(self, db):
+    """Set the internal DB link to allow self update
+
+    Add reference to main database into this hostname
+    @param db [Database] : the database instance to use for self update call
+    """
+    assert self.__db is None
+    self.__db = db
+
+# Private methods
   def __update(self):
     """update(): Change the date of the last update of the
     hostname

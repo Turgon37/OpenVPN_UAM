@@ -63,20 +63,20 @@ class User(object):
     self._update_time = None
     # python model
     self.__lst_hostname = []
+    # internal link to database for self update
+    self.__db = None
 
   def load(self, attributs, hostnames):
-    """Load an user entity with attributs
+    """Load an user entity with the given list of attributes and hostnames
 
     @param attributs [dict] : a key-value dict which contains attributs
     to set to this User object
+
     """
+    assert isinstance(attributs, dict)
+    assert isinstance(hostnames, list)
     # already set
     assert self._id is None
-    if self._id is not None:
-      return
-
-    # load attributes
-    assert isinstance(attributs, dict)
     # loop for each given attributes
     for key in attributs:
       if hasattr(self, "_" + key):
@@ -116,43 +116,44 @@ class User(object):
     If the id is already set, do nothing
     @param id [int] : the new id
     """
-    # ASSERT
     assert self._id is None
-
-    if self._id is not None:
-      return
     try:
       self._id = int(id)
     except ValueError as e:
       g_sys_log.error('Error with User ID format ' + str(type(self._id)))
       helper_log_fatal(g_sys_log, 'error_models.user.fatal')
 
+  def setDb(self, db):
+    """Set the internal DB link to allow self update
+
+    Add reference to main database into this user and all his hostname
+    @param db [Database] : the database instance to use for self update call
+    """
+    assert self.__db is None
+    self.__db = db
+    for h in self.__lst_hostname:
+      h.setDb(db)
+
   def addHostname(self, hostname):
     """addHostname(): Add an hostname to the user
 
     @param hostname [Hostname] : an hostname will be used by the user
     """
-    if isinstance(hostname, Hostname):
-      print("TODO INTERNAL ERROR")
-      return
+    assert isinstance(hostname, Hostname)
     self.__lst_hostname.append(hostname)
     """ --Add the entry in the Database-- """
 
   def enable(self):
     """enable(): Change the state of the user to enabled
     """
-    if self._is_enable is True:
-      print("TODO INTERNAL ERROR")
-      return
-    self._is_enable = True
+    assert self._is_enabled is False
+    self._is_enabled = True
 
   def disable(self):
     """disable(): Change the state of the user to disabled
     """
-    if self._is_enable is False:
-      print("TODO INTERNAL ERROR")
-      return
-    self._is_enable = False
+    assert self._is_enabled is True
+    self._is_enabled = False
 
   def __str__(self):
     """[DEBUG] Produce a description string for this user instance
