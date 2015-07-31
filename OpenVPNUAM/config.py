@@ -158,15 +158,7 @@ class OVPNUAMConfigParser(ConfigParser):
                       group)
       return None
 
-  def getDatabaseAdapter(self, default='default'):
-    """Return the name of the database adapter to use
-
-    @return [str]: the name of the python file in database/ directory to use
-    as database adapter
-    """
-    return self.get(self.DATABASE_SECTION, 'adapter', fallback=default)
-
-  def getItemsFromSection(self, section):
+  def getItems(self, section='default'):
     """Return all options item in section given by parameter
 
     @param section [str] the section from which to obtains configuration items

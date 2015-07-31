@@ -31,6 +31,7 @@ the updating of these datas.
 
 # System imports
 import logging
+import time
 
 # Project imports
 from .adapter import Adapter
@@ -54,7 +55,31 @@ class Database(object):
     self.__cp = confparser
     self.__adapter = None
     self.__status = self.UNLOAD
+    # this is the cached list of user
     self.__l_user = None
+    # number of second from epoch at the last adapter polling
+    self.__poll_ref = 0.0
+    # number of second between two poll
+    self.__poll_time = 600.0
+    
+  def load(self):
+    """Load parameter from config
+    
+    Check the input parameter to be sure they are valid
+    @return [bool] True if parameter success, False otherwise
+    """
+    if not self.__cp.has_section(self.__cp.DATABASE_SECTION):
+      return False
+    if 'poll_time' not in self.__cp.getItems(self.__cp.DATABASE_SECTION):
+      g_sys_log.debug('Use default poll time of ' + str(self.__poll_time))
+    else:
+      try:
+        v = float(self.__cp.getItems(self.__cp.DATABASE_SECTION)['poll_time'])
+        self.__poll_time = v
+      except ValueError as e:
+        g_sys_log.error('Invalid format for "poll_time" option')
+        return False
+    return True
 
   def __newAdapter(self):
     """Load a new instance of selected adapter and return it
@@ -63,7 +88,7 @@ class Database(object):
     the name given in configuration file.
     @return [object] the new adapter instance
     """
-    name = self.__cp.getDatabaseAdapter()
+    name = self.__cp.getItems(self.__cp.DATABASE_SECTION)['adapter']
     adapter = None
 
     try:
@@ -110,7 +135,7 @@ class Database(object):
 
     try:
       # open database
-      if adapter.open(self.__cp.getItemsFromSection(adapter.getName())):
+      if adapter.open(self.__cp.getItems(adapter.getName())):
         g_sys_log.debug('Opened database type "' + adapter.getName() + '"')
         self.__status = self.OPEN
         return True
@@ -145,8 +170,8 @@ class Database(object):
     """
     assert self.__adapter is not None
     assert self.__status == self.OPEN
-    # TODO polling
-    if self.__l_user is None:
+    # refresh the internal cached list by ask again the adapter
+    if time.time() - self.__poll_ref >= self.__poll_time:
       self.__l_user = self.__adapter.getUserList()
-
+      self.__poll_ref = time.time()
     return self.__l_user
