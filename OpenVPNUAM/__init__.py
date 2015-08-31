@@ -49,5 +49,4 @@ To use this module you can :
 from .version import version
 from .openvpnuam import OpenVPNUAM
 
-
-__all__ = ['version']
+__all__ = ['version', 'openvpnuam']

@@ -22,11 +22,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Models
+# Project imports
+from .Template import Table
 
-These class describes models for database entities used by program
-"""
-from .user import User
-from .hostname import Hostname
 
-__all__ = ['user', 'hostname']
+class MysqlTableHostname(Table):
+  table = 'hostname'
+  primary = 'id_hostname'
+  foreign = 'fk_user_id'
+  column_options = {'id_hostname': {'type': int, 'rename': 'id'},
+                    'fk_user_id': {'type': int, 'hide': True},
+                    'hostname': {'type': str, 'rename': 'name'},
+                    'is_enabled': {'type': bool},
+                    'creation_time': {'type': str},
+                    'update_time': {'type': str},
+                    }

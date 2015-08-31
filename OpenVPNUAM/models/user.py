@@ -2,7 +2,7 @@
 
 # This file is a part of OpenVPN-UAM
 #
-# Copyright (c) 2015 Thomas PAJON
+# Copyright (c) 2015 Thomas PAJON, Pierre GINDRAUD
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,99 +22,173 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""USER - user program class
+"""Models/User
 
-This program class is the model that define an user. It allows to manage this
-user and also to update its attributes.
+This file contains the class of Users entities
 """
 
 # System imports
-import .hostname
+import datetime
+import logging
 
-class User:
+# Project imports
+from .hostname import Hostname
+from ..helpers import *
+
+# Global project declarations
+g_sys_log = logging.getLogger('openvpn-uam.model.user')
+
+
+class User(object):
   """Build an instance of the user program class
   """
 
-  def __init__(self, mail, is_enable = True):
-    """Constructor: Build the program lead program
+  def __init__(self, cuid, mail):
+    """Constructor: Build a new empty user
 
-    @param mail [string] : first e-mail address that the user has
-    @param is_enable [boolean] : if the user is activated
+    @param cuid [str] : common unique user identifier
+    @param mail [str] : main mail address of this user
     """
+    # database model
+    self._id = None
+    self._cuid = cuid
+    self._user_mail = mail
+    self._certificate_mail = None
+    self._password_mail = None
+    self._is_enabled = False
+    self._certificate_password = None
+    self._start_time = None
+    self._stop_time = None
+    self._creation_time = datetime.datetime.today()
+    self._update_time = None
+    # python model
     self.__lst_hostname = []
-    self.__lst_mail = [mail]
-    self.__is_enable = is_enable
+    # internal link to database for self update
+    self.__db = None
 
-  """Getters methods
-  """
+  def load(self, attributs, hostnames):
+    """Load an user entity with the given list of attributes and hostnames
 
-  def getHostname(self):
-    """getHostname(): Get the list of the user's hostname
+    @param attributs [dict] : a key-value dict which contains attributs
+    to set to this User object
+
+    """
+    assert isinstance(attributs, dict)
+    assert isinstance(hostnames, list)
+    # already set
+    assert self._id is None
+    # loop for each given attributes
+    for key in attributs:
+      if hasattr(self, "_" + key):
+        setattr(self, "_" + key, attributs[key])
+      else:
+        g_sys_log.error('Unknown attribute from source "' + key + '"')
+
+    # load hostnames
+    assert isinstance(hostnames, list)
+    self.__lst_hostname = hostnames
+
+# Getters methods
+  def getHostnameList(self):
+    """Get the list of the user's hostname
 
     @return [list] : list of hostnames used by the user
     """
     return self.__lst_hostname
 
-  def getMail(self):
-    """getMail(): Get the list of the user's e-mail address
+  def getId(self):
+    """Return the current User ID
 
-    @return [list] : list of e-mail address used by the user
+    @return [int] the id
     """
-    return self.__lst_mail
+    if self._id is None:
+      return None
+    try:
+      return int(self._id)
+    except ValueError as e:
+      g_sys_log.error('Error with User ID format ' + str(type(self._id)))
+      helper_log_fatal(g_sys_log, 'error_models.user.fatal')
 
-  def getActivationState(self):
-    """getActivatedState(): Get the state of the user
+# Setters methods
+  def setId(self, id):
+    """Set the current user's ID
 
-    @return [boolean] : if the user is enable
+    If the id is already set, do nothing
+    @param id [int] : the new id
     """
-    return self.__is_enable
+    assert self._id is None
+    try:
+      self._id = int(id)
+    except ValueError as e:
+      g_sys_log.error('Error with User ID format ' + str(type(self._id)))
+      helper_log_fatal(g_sys_log, 'error_models.user.fatal')
 
-  """Setters methods
-  """
+  def setDb(self, db):
+    """Set the internal DB link to allow self update
+
+    Add reference to main database into this user and all his hostname
+    @param db [Database] : the database instance to use for self update call
+    """
+    assert self.__db is None
+    self.__db = db
+    for h in self.__lst_hostname:
+      h.setDb(db)
 
   def addHostname(self, hostname):
     """addHostname(): Add an hostname to the user
 
-    @param hostname [str] : an hostname will be used by the user
+    @param hostname [Hostname] : an hostname will be used by the user
     """
-    self.__lst_hostname.append(hostname.Hostname(hostname))
+    assert isinstance(hostname, Hostname)
+    self.__lst_hostname.append(hostname)
     """ --Add the entry in the Database-- """
-
-  def removeHostname(self, hostname):
-    """removeHostname(): Remove an hostname to the user
-
-    @param hostname [str] : an hostname used by the user
-    """
-    """ --Revoke certificates related on this hostname-- """
-    for hostn in self.__lst_hostname:
-      if hostn.getName() == hostname:
-        self.__lst_hostname.remove(hostn)
-    """ --Delete all entries related on this hostname in the Database-- """
-
-  def addMail(self, mail):
-    """addMail(): Add an e-mail address to the user
-
-    @param mail [str] : an e-mail will be used by the user
-    """
-    self.__lst_mail.append(mail)
-    """ --Add the entry in the Database-- """
-
-  def removeMail(self, mail):
-    """removeMail(): Remove an e-mail address to the user
-
-    @param mail [str] : an e-mail address used by the user
-    """
-    self.__lst_mail.remove(mail)
-    """ --Delete the entry in the database-- """
 
   def enable(self):
-    """enable(): Change the state of the user to enable
+    """enable(): Change the state of the user to enabled
     """
-    self.__is_enable = True
-    """ --Change the entry value in the database-- """
+    assert self._is_enabled is False
+    self._is_enabled = True
 
   def disable(self):
-    """disable(): Change the state of the user to disable
+    """disable(): Change the state of the user to disabled
     """
-    self.__is_enable = False
-    """ --Change the entry value in the database-- """
+    assert self._is_enabled is True
+    self._is_enabled = False
+
+  def __str__(self):
+    """[DEBUG] Produce a description string for this user instance
+
+    @return [str] a formatted string that describe this user
+    """
+    content = ("USER (" + str(self._id) + ")" +
+               "\n  CUID = " + str(self._cuid) +
+               "\n  UMAIL = " + str(self._user_mail) +
+               "\n  CERTMAIL = " + str(self._certificate_mail) +
+               "\n  PASSMAIL = " + str(self._password_mail) +
+               "\n  STATUS = " + str(self._is_enabled) +
+               "\n  CERT PASSWD = " + str(self._certificate_password) +
+               "\n  START DATE = " + str(self._start_time) +
+               "\n  END DATE = " + str(self._stop_time) +
+               "\n  CREATED ON = " + str(self._creation_time) +
+               "\n  UPDATED ON = " + str(self._update_time))
+    for h in self.__lst_hostname:
+      content += "\n" + str(h)
+    return content
+
+  def __repr__(self):
+    """[DEBUG] Produce a list of attribute as string for this user instance
+
+    @return [str] a formatted string that describe this user
+    """
+    return ("[id(" + str(self._id) + ")," +
+            " cuid(" + str(self._cuid) + ")," +
+            " umail(" + str(self._user_mail) + ")," +
+            " certmail(" + str(self._certificate_mail) + ")," +
+            " passmail(" + str(self._password_mail) + ")," +
+            " enable(" + str(self._is_enabled) + ")," +
+            " certpasswd(" + str(self._certificate_password) + ")," +
+            " startdate(" + str(self._start_time) + ")," +
+            " enddate(" + str(self._stop_time) + ")," +
+            " createdon(" + str(self._creation_time) + ")," +
+            " updatedon(" + str(self._update_time) + ")," +
+            " hostname(" + str(len(self.__lst_hostname)) + ")]")

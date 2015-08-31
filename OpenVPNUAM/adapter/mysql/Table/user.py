@@ -22,11 +22,24 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Models
+"""This file contains the description of User table"""
 
-These class describes models for database entities used by program
-"""
-from .user import User
-from .hostname import Hostname
+# Project imports
+from .Template import Table
 
-__all__ = ['user', 'hostname']
+
+class MysqlTableUser(Table):
+  table = 'user'
+  primary = 'id_user'
+  column_options = {'id_user': {'type': int, 'rename': 'id'},
+                    'cuid': {'type': str},
+                    'user_mail': {'type': str},
+                    'certificate_mail': {'type': str},
+                    'password_mail': {'type': str},
+                    'is_enabled': {'type': bool},
+                    'certificate_password': {'type': str},
+                    'start_time': {'type': str},
+                    'stop_time': {'type': str},
+                    'creation_time': {'type': str},
+                    'update_time': {'type': str},
+                    }

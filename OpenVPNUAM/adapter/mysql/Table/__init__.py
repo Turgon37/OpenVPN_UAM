@@ -22,11 +22,5 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Models
-
-These class describes models for database entities used by program
-"""
-from .user import User
-from .hostname import Hostname
-
-__all__ = ['user', 'hostname']
+from .user import *
+from .hostname import *

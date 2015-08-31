@@ -37,13 +37,14 @@ import sys
 
 
 # Projet Imports
-#from .config import OVPNUAMConfigParser
+from .config import OVPNUAMConfigParser
+from .database import Database
 
 # Global project declarations
 g_sys_log = logging.getLogger('openvpn-uam')
 
 
-class OpenVPNUAM:
+class OpenVPNUAM(object):
   """Build an instance of the openvpn uam program class
 
   This instance must be configured with load() before launched by start() call
@@ -60,8 +61,7 @@ class OpenVPNUAM:
                                 message
     """
     # config parser
-    # TODO
-    #self.cp = OpenVPNUAMConfigParser()
+    self.cp = OVPNUAMConfigParser()
 
     self.is_daemon = daemon
     # Local entities
@@ -79,14 +79,13 @@ class OpenVPNUAM:
                         False otherwise
     """
     if config is not None:
-      # TODO
-      #if self.cp.load(config):
-      #  self.setLogLevel(self.cp.getOptLogLevel())
-      #  self.setLogTarget(self.cp.getOptLogTarget())
+      if self.cp.load(config):
+        self.setLogLevel(self.cp.getLogLevel())
+        self.setLogTarget(self.cp.getLogTarget())
         return True
     return False
 
-  def start(self, pid_path):
+  def start(self, pid_path=None):
     """Run the service features
 
     Daemonize if daemon is True in constructor
@@ -102,9 +101,8 @@ class OpenVPNUAM:
     signal.signal(signal.SIGINT, self.__sigTERM_handler)
 
     # Load configuration
-    # TODO
-    #if not self.cp.isLoaded():
-    #  return False
+    if not self.cp.isLoaded():
+      return False
 
     # Turn in daemon mode
     if self.is_daemon:
@@ -115,6 +113,9 @@ class OpenVPNUAM:
         g_sys_log.error('Could not create daemon')
         raise Exception('Could not create daemon')
 
+    # Check pidfile
+    if pid_path is None:
+      pid_path = self.cp.getPidPath()
     # Create the pid file
     try:
       g_sys_log.debug("Creating PID file %s", pid_path)
@@ -137,7 +138,7 @@ class OpenVPNUAM:
     except OSError as e:
       g_sys_log.error("Unable to remove PID file: %s", e)
 
-    g_sys_log.info("Exiting netsav")
+    g_sys_log.info("Exiting OUAM")
     return True
 
   def run(self):
@@ -148,7 +149,32 @@ class OpenVPNUAM:
     launch automatically by start()
     """
     try:
-      pass
+      print("START")
+
+      print("START DB")
+      db = Database(self.cp)
+      if not db.load():
+        print('ERROR CONFIG')
+      else:
+        print("OPEN DB")
+        if not db.open():
+          print('ERROR OPEN')
+        else:
+          print("TEST DB")
+          import time
+          import datetime
+          while True:
+            if db.getUserList() is None:
+              print("DATAAAA NONE")
+            else:
+              print("DATAAAA OK")
+            #for i in db.getUserList():
+            #  print(i)
+            print("########## " + str(datetime.datetime.today()))
+            time.sleep(4)
+          print("CLOSE DB")
+          db.close()
+
     except SystemExit:
       return
     except KeyboardInterrupt:
@@ -177,18 +203,15 @@ class OpenVPNUAM:
   def __downgrade(self):
     """Downgrade daemon privilege to another uid/gid
     """
-    # TODO
-    #uid = self.cp.getOptUid()
-    #gid = self.cp.getOptGid()
-    uid = None
-    gid = None
+    uid = self.cp.getUid()
+    gid = self.cp.getGid()
 
     try:
       if gid is not None:
-        g_sys_log.debug("Setting process group to gid %d", gid)
+        g_sys_log.debug("Setting processus group to gid %d", gid)
         os.setgid(gid)
       if uid is not None:
-        g_sys_log.debug("Setting process user to uid %d", uid)
+        g_sys_log.debug("Setting processus user to uid %d", uid)
         os.setuid(uid)
     except PermissionError:
       g_sys_log.error('Insufficient privileges to set process id')

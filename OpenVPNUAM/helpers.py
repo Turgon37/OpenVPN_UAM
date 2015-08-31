@@ -22,11 +22,26 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Models
+"""This module provide some helper tools to help main program"""
 
-These class describes models for database entities used by program
-"""
-from .user import User
-from .hostname import Hostname
+# System import
+import datetime
+import traceback
 
-__all__ = ['user', 'hostname']
+
+def helper_log_fatal(logger, file='error'):
+  """This is a helper for logging a fatal error
+
+  @param logger [logging.logger] : the logger to use to make message
+  @param file [str] OPTIONNAL : the file into write stacktrace
+  """
+  error_out = open(file, 'a')
+  error_out.write('----------------------------------------------------\n')
+  error_out.write('ERROR AT ' + str(datetime.datetime.today()) + ' => \n')
+  traceback.print_stack(file=error_out)
+  error_out.write(traceback.format_exc())
+  error_out.write('----------------------------------------------------')
+  error_out.write("\n\n\n\n")
+  error_out.close()
+  logger.error('FATAL ERROR : contact developer and send him the file "' +
+               file + '"')

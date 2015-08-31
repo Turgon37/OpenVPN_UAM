@@ -2,7 +2,7 @@
 
 # This file is a part of OpenVPN-UAM
 #
-# Copyright (c) 2015 Thomas PAJON
+# Copyright (c) 2015 Pierre GINDRAUD
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,20 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""MODEL - Model program class
-
-This program class is an accesser to several programs classes contains openvpn uam
-data. It manages these data and ensures their integrity. It also allows the
-updating of these data.
+"""Init file of mysql adapter
 """
 
-# System imports
-
-
-class Model:
-  """Build an instance of the model program class
-  """
-
-  def __init__(self):
-    """Constructor: Build the program lead object
-    """
+# Project imports
+from .mysql import Connector

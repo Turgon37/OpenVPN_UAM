@@ -43,15 +43,16 @@ except ImportError:
   sys.path.insert(1, "/usr/share")
   try:
     import OpenVPNUAM
-  except ImportError:
-    print("Impossible to load the OpenVPNUAM")
+  except ImportError as e:
+    print("Impossible to load the OpenVPNUAM module")
+    print(str(e))
     sys.exit(1)
 
 # Global project declarations
 logger = logging.getLogger('openvpnuam-launcher')
 
 
-class OpenVPNUAMLauncher:
+class OpenVPNUAMLauncher(object):
   """A simple launcher class of the netsav program, run a netsav instance with custom args
 
   Use a both system shell arg and static configuration to run a netsav instance
@@ -59,12 +60,12 @@ class OpenVPNUAMLauncher:
   """
 
   def __init__(self):
-    """Constructor : Build a launcher for netsav
+    """Constructor : Build a launcher for main program
     """
     self.__program = None
     self.__conf = dict()
     self.__conf['background'] = False
-    self.__conf['pid_file'] = '/var/run/openvpn-uam.pid'
+    self.__conf['pid_file'] = None
     self.__conf['config_file'] = '/etc/openvpn-uam.conf'
     self.__conf['log_level'] = 'INFO'
 
@@ -153,7 +154,7 @@ Return code :
       if not self.__program.load(self.__conf['config_file']):
         logger.error('Unable to load configuration file')
         return 3
-      return self.__program.start(self.__conf['pid_file'])
+      return not self.__program.start(self.__conf['pid_file'])
     except Exception as e:
       logger.exception(e)
       return 1
