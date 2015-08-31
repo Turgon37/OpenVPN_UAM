@@ -150,8 +150,31 @@ class OpenVPNUAM(object):
     """
     try:
       print("START")
-      
-      
+
+      print("START DB")
+      db = Database(self.cp)
+      if not db.load():
+        print('ERROR CONFIG')
+      else:
+        print("OPEN DB")
+        if not db.open():
+          print('ERROR OPEN')
+        else:
+          print("TEST DB")
+          import time
+          import datetime
+          while True:
+            if db.getUserList() is None:
+              print("DATAAAA NONE")
+            else:
+              print("DATAAAA OK")
+            #for i in db.getUserList():
+            #  print(i)
+            print("########## " + str(datetime.datetime.today()))
+            time.sleep(4)
+          print("CLOSE DB")
+          db.close()
+
     except SystemExit:
       return
     except KeyboardInterrupt:
