@@ -63,9 +63,13 @@ class Database(object):
     # this is the cached list of user
     self.__l_user = None
     # number of second from epoch at the last adapter polling
-    self.__poll_ref = 0.0
+    self.__db_poll_ref = 0.0
     # number of second between two consecutive poll from adapter
-    self.__poll_time = 600.0
+    self.__db_poll_time = 600.0
+    # number of second from epoch at the last adapter polling
+    self.__db_poll_ref = 0.0
+    # number of second between two consecutive poll from adapter
+    self.__db_poll_time = 600.0
     
   def load(self):
     """Load parameter from config
@@ -75,15 +79,27 @@ class Database(object):
     """
     if not self.__cp.has_section(self.__cp.DATABASE_SECTION):
       return False
-    if 'poll_time' not in self.__cp.getItems(self.__cp.DATABASE_SECTION):
-      g_sys_log.debug('Use default poll time of ' + str(self.__poll_time))
+    if 'db_poll_time' not in self.__cp.getItems(self.__cp.DATABASE_SECTION):
+      g_sys_log.debug('Use default database poll time of ' +
+                      str(self.__db_poll_time))
     else:
       try:
-        self.__poll_time = float(
-            self.__cp.getItems(self.__cp.DATABASE_SECTION)['poll_time'])
+        self.__db_poll_time = float(
+            self.__cp.getItems(self.__cp.DATABASE_SECTION)['db_poll_time'])
       except ValueError as e:
-        g_sys_log.error('Invalid format for "poll_time" option')
+        g_sys_log.error('Invalid format for "db_poll_time" option')
         return False
+    if 'cert_poll_time' not in self.__cp.getItems(self.__cp.DATABASE_SECTION):
+      g_sys_log.debug('Use default certificate poll time of ' +
+                      str(self.__cert_poll_time))
+    else:
+      try:
+        self.__cert_poll_time = float(
+            self.__cp.getItems(self.__cp.DATABASE_SECTION)['cert_poll_time'])
+      except ValueError as e:
+        g_sys_log.error('Invalid format for "cert_poll_time" option')
+        return False
+        
     self.__status = self.CLOSE
     return True
 
@@ -177,11 +193,11 @@ class Database(object):
     """
     assert self.__status == self.OPEN
     # refresh the internal cached list by ask again the adapter
-    if time.time() - self.__poll_ref >= self.__poll_time:
+    if time.time() - self.__db_poll_ref >= self.__db_poll_time:
       l_u = self.__adapter.getUserList()
       # error in data retrieving from DB
       if l_u is not None:
-        self.__poll_ref = time.time()
+        self.__db_poll_ref = time.time()
         # set the reference to self into all user entities
         for user in l_u:
           user.setDb(self)
