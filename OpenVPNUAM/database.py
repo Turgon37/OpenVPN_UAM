@@ -67,13 +67,13 @@ class Database(object):
     # number of second between two consecutive poll from adapter
     self.__db_poll_time = 600.0
     # number of second from epoch at the last adapter polling
-    self.__db_poll_ref = 0.0
+    self.__cert_poll_ref = 0.0
     # number of second between two consecutive poll from adapter
-    self.__db_poll_time = 600.0
-    
+    self.__cert_poll_time = 86400.0
+
   def load(self):
     """Load parameter from config
-    
+
     Check the input parameter to be sure they are valid
     @return [bool] True if parameter success, False otherwise
     """
@@ -99,7 +99,7 @@ class Database(object):
       except ValueError as e:
         g_sys_log.error('Invalid format for "cert_poll_time" option')
         return False
-        
+
     self.__status = self.CLOSE
     return True
 
