@@ -22,37 +22,48 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""PKI - Public Key Infrastructure program class
+"""Models/Certificate
 
-This program class aim to manage the users registering, certificates generation, their 
-renewal and also their revocation.
+This file contains class for certificate.
+It provide some function to manage this certificate and also to update its
+attributs.
 """
 
 # System imports
+import datetime
 import logging
 
-from models/user import User
-
 # Global project declarations
-g_sys_log = logging.getLogger('openvpn-uam')
+g_sys_log = logging.getLogger('openvpn-uam.model.certificate')
 
 
-class PKI:
-  """Build an instance of the pki program class
-
-  This instance must be called in the openvpn uam program class
+class Certificate(object):
+  """Constructor: Build an instanceof the certificate program class
   """
 
   def __init__(self):
-    """Constructor : Build the program lead object
+    """Constructor: Build a new empty hostname
     """
-    self.__list_users = []
-  
-  def start(self):
-    self.createUser("mail@gmail.com", "user1")
+    # database model
+    self._id = None
+    self._passwd = True
+    self._is_revoked = False
+    self._revoked_reason = None
+    self._revoked_time = None
+    self._certificate_begin_time = None
+    self._certificate_end_time = None
 
-  def createUser(self, mail, hostname, is_enable = True):
-    user = User(mail, is_enable)
+  def load(self, attributes):
+    """Load a certificate entity with attributes
 
-    user.addHostname(hostname)
-    self.__list_users.append(user)
+    @param attributes [dict] : a key-value dict which contains attributs
+    to set to this Certificate object
+    """
+    assert self._id is None
+    assert isinstance(attributes, dict)
+    # loop for each given attributes
+    for key in attributes:
+      if hasattr(self, "_" + key):
+        setattr(self, "_" + key, attributes[key])
+      else:
+        g_sys_log.error('Unknown attribute from source "' + key + '"')
