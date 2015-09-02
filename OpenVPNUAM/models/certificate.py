@@ -66,3 +66,16 @@ class Certificate(object):
         setattr(self, "_" + key, attributes[key])
       else:
         g_sys_log.error('Unknown attribute from source "' + key + '"')
+
+  def __str__(self):
+    """[DEBUG] Produce a description string for this certificate instance
+
+    @return [str] a formatted string that describe this certificate
+    """
+    content = ("    *CERTIFICAT (" + str(self._id) + ")" +
+               "\n      IS_PASSWORD = " + str(self._is_password) +
+               "\n      REVOKED REASON = " + str(self._revoked_reason) +
+               "\n      REVOKED TIME = " + str(self._revoked_time) +
+               "\n      NOT BEFORE = " + str(self._certificate_begin_time) +
+               "\n      NOT AFTER = " + str(self._certificate_end_time))
+    return content
