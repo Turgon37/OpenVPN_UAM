@@ -22,6 +22,21 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from .user import *
-from .hostname import *
-from .user_certificate import *
+"""This file contains the description of User table"""
+
+# Project imports
+from .Template import Table
+
+
+class MysqlTableUserCertificate(Table):
+  table = 'user_certificate'
+  primary = 'id_certificate'
+  foreign = 'fk_hostname_id'
+  column_options = {'id_user_certificate': {'type': int, 'rename': 'id'},
+                    'fk_hostname_id': {'type': int, 'hide': True},
+                    'is_password': {'type': bool},
+                    'revoked_reason': {'type': str},
+                    'revoked_time': {'type': str},
+                    'certificate_begin_time': {'type': str},
+                    'certificate_end_time': {'type': str},
+                    }

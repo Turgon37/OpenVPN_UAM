@@ -83,8 +83,8 @@ class Connector(Adapter):
     self.__server_poll_ref = 0.0
     # store the current connection state
     self.__status = self.CLOSE
-    
-    self.__param = dict(charset= 'utf8mb4')
+    # default parameter to use during database opening
+    self.__param = dict(charset='utf8mb4')
 
   def open(self, config):
     """Open the database for read/write operation
@@ -94,7 +94,7 @@ class Connector(Adapter):
     @return [boolean] inform about operation successfull True if success
               False otherwise
     """
-    # if there is not current config available try to use the given
+    # if there is no current config available try to use the given
     if self.__config is None:
       # required parameters
       if config is None:
@@ -113,7 +113,7 @@ class Connector(Adapter):
         except ValueError as e:
           g_sys_log.error('Invalid format for "server_poll_time" option')
           return False
-          
+
       # default parameters
       if 'user' not in config:
         config['user'] = 'root'
@@ -121,7 +121,7 @@ class Connector(Adapter):
       if 'passwd' in config and len(config['passwd']) > 0:
         self.__param['passwd'] = config['passwd']
       self.__param['db'] = config['db']
-        
+
       # access to server
       if 'unix_socket' in config:
         # Connect to the database with UNIX socket
@@ -132,7 +132,8 @@ class Connector(Adapter):
       else:
         g_sys_log.warning('Mysql will used default address/socket to' +
                           'connect to the server')
-
+    # open the database and handle all error type because it the first
+    # opening of the DB
     try:
       return self.__open()
     except MySQLdb.MySQLError as e:
@@ -199,17 +200,21 @@ class Connector(Adapter):
       return None
     # SYSTEM error
     except MySQLdb.OperationalError as e:
+      # case where the client lost connection with server
       if e.args[0] == MySQLdb.constants.CR.SERVER_GONE_ERROR:
+        # it's the first time the connection is closed
         if self.__status == self.OPEN:
           g_sys_log.error('Connection with MySQL server fail')
         self.__status = self.CLOSE
         # TRY to re-open
         try:
+          # if success
           if self.__open():
             g_sys_log.info('Connection with MySQL server restarted after ' +
                            'being cut off')
-            # re-do the given query
+
             return None
+        # error in network unable to re-open connection
         except MySQLdb.OperationalError as e:
           if e.args[0] in self.CONNECTION_ERROR_CODE:
             return None
@@ -243,12 +248,19 @@ class Connector(Adapter):
     l_user = []
     cur = self.__queryDict('SELECT ' + MysqlTableUser.getSelectColumn() +
                            'FROM ' + MysqlTableUser.getName())
+    # if the result is None immediatly return None for the entire query
     if cur is None:
       return None
     else:
+      # loop over each user row
       for l in cur:
+        assert 'id' in l
         u = Model.User(None, None)
+        # retrieve hostname list associated with given user code
         l_h = self.getHostnameListFromUserId(l['id'])
+        # if the result is None => immediatly fail the entire query
+        # if there is not hostname associated with this user, the result
+        # will be a empty list like []
         if l_h is None:
           return None
         else:
@@ -272,8 +284,46 @@ class Connector(Adapter):
     if cur is None:
       return None
     else:
-      for l in cur:
+      # loop over each hostname row
+      for r in cur:
+        assert 'id' in r
         h = Model.Hostname(None)
-        h.load(l)
-        l_host.append(h)
+        # retrieve not-yet expired certificate list associated with given user
+        # code
+        l_c = self.getUserCertificateListFromHostnameId(r['id'])
+        # if query fail this will propagate the error to other
+        if l_c is None:
+          return None
+        else:
+          h.load(r, l_c)
+          l_host.append(h)
     return l_host
+
+  def getUserCertificateListFromHostnameId(self, id):
+    """Query the database to retrieve the list of not yet expired certificates
+
+    This function retrieve from database the list of certificates associated
+    with the given user's id. It convert the result into a list of Certificate
+    objects according to the program Model.
+    Only not-yet expired certificates are returned here.
+    Each of theses certificates are returned as a single list. It's charge of
+    Hostname class to provide there sorting into differents categories
+    @return [list] the list of Certificates of hostname identified by given id
+            [None] if the database query fail
+    """
+    l_cert = []
+    cur = self.__queryDict(
+        'SELECT ' + MysqlTableUserCertificate.getSelectColumn() +
+        ' FROM ' + MysqlTableUserCertificate.getName() +
+        ' WHERE ' + MysqlTableUserCertificate.getForeign() + '= %s',
+        (id,))
+    if cur is None:
+      return None
+    else:
+      # loop over each certificates
+      for l in cur:
+        assert 'id' in l
+        c = Model.Certificate()
+        c.load(l)
+        l_cert.append(c)
+    return l_cert
