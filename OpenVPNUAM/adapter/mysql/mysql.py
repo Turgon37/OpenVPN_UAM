@@ -246,7 +246,7 @@ class Connector(Adapter):
             [None] if the database query fail
     """
     l_user = []
-    cur = self.__queryDict('SELECT ' + MysqlTableUser.getSelectColumn() +
+    cur = self.__queryDict('SELECT ' + MysqlTableUser.getSelectColumns() +
                            'FROM ' + MysqlTableUser.getName())
     # if the result is None immediatly return None for the entire query
     if cur is None:
@@ -277,7 +277,7 @@ class Connector(Adapter):
             [None] if the database query fail
     """
     l_host = []
-    cur = self.__queryDict('SELECT ' + MysqlTableHostname.getSelectColumn() +
+    cur = self.__queryDict('SELECT ' + MysqlTableHostname.getSelectColumns() +
                            ' FROM ' + MysqlTableHostname.getName() +
                            ' WHERE ' + MysqlTableHostname.getForeign() + '= %s',
                            (id,))
@@ -313,7 +313,7 @@ class Connector(Adapter):
     """
     l_cert = []
     cur = self.__queryDict(
-        'SELECT ' + MysqlTableUserCertificate.getSelectColumn() +
+        'SELECT ' + MysqlTableUserCertificate.getSelectColumns() +
         ' FROM ' + MysqlTableUserCertificate.getName() +
         ' WHERE ' + MysqlTableUserCertificate.getForeign() + '= %s',
         (id,))

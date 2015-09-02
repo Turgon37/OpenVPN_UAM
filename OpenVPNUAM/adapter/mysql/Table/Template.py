@@ -69,14 +69,14 @@ class Table(object):
       return cls.foreign
 
   @classmethod
-  def getColumnOption(cls):
-    """Return the column option of this class
+  def getColumnOptions(cls):
+    """Return the column options of this class
     """
     return cls.column_options
 
   @classmethod
-  def getSelectColumn(cls, sep=","):
-    """Return the list of column relevant for select query
+  def getSelectColumns(cls, sep=","):
+    """Return the list of columns relevant for SELECT * query
 
     Return a list of all column option as python list by default
     If string is set to True, return a SQL formatted field, with each column
