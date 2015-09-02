@@ -2,7 +2,7 @@
 
 # This file is a part of OpenVPN-UAM
 #
-# Copyright (c) 2015 Thomas PAJON
+# Copyright (c) 2015 Thomas PAJON, Pierre GINDRAUD
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -57,19 +57,25 @@ class Database(object):
   def __init__(self, confparser):
     """Constructor: Build a new database object
     """
+    # reference to the configparser use for retrieve configuration option
     self.__cp = confparser
+    # this is the adapter instance to implement DB call
     self.__adapter = None
+    # This status value inform about DATABASE status
     self.__status = self.UNLOAD
-    # this is the cached list of user
+    # This is the list of User class
+    # At the first query on this database, this list will be
+    # filled with data present currently in database. Later if something
+    # ask again the same query, the result will not be get from adapter
+    # but from this attributes. This process implement a cache system for
+    # data of this application
     self.__l_user = None
+    # The database data are polled from adapter at a specific time interval
+    # this interval is specified by theses following two values
     # number of second from epoch at the last adapter polling
     self.__db_poll_ref = 0.0
-    # number of second between two consecutive poll from adapter
+    # STATIC number of second between two consecutive poll from adapter
     self.__db_poll_time = 600.0
-    # number of second from epoch at the last adapter polling
-    self.__cert_poll_ref = 0.0
-    # number of second between two consecutive poll from adapter
-    self.__cert_poll_time = 86400.0
 
   def load(self):
     """Load parameter from config
@@ -79,6 +85,8 @@ class Database(object):
     """
     if not self.__cp.has_section(self.__cp.DATABASE_SECTION):
       return False
+      
+    # try to load db_poll_time from configuration
     if 'db_poll_time' not in self.__cp.getItems(self.__cp.DATABASE_SECTION):
       g_sys_log.debug('Use default database poll time of ' +
                       str(self.__db_poll_time))
@@ -89,17 +97,6 @@ class Database(object):
       except ValueError as e:
         g_sys_log.error('Invalid format for "db_poll_time" option')
         return False
-    if 'cert_poll_time' not in self.__cp.getItems(self.__cp.DATABASE_SECTION):
-      g_sys_log.debug('Use default certificate poll time of ' +
-                      str(self.__cert_poll_time))
-    else:
-      try:
-        self.__cert_poll_time = float(
-            self.__cp.getItems(self.__cp.DATABASE_SECTION)['cert_poll_time'])
-      except ValueError as e:
-        g_sys_log.error('Invalid format for "cert_poll_time" option')
-        return False
-
     self.__status = self.CLOSE
     return True
 
@@ -143,12 +140,12 @@ class Database(object):
     not
     """
     assert self.__status == self.CLOSE
+    # instanciate a new Adapter object to be use during this session
     if self.__adapter is None:
       self.__adapter = self.__newAdapter()
 
     adapter = self.__adapter
-    if adapter is None:
-      return False
+    assert adapter is not None
 
     # adapter config checking
     if not self.__cp.has_section(adapter.getName()):
@@ -183,8 +180,11 @@ class Database(object):
     not
     """
     assert self.__status == self.OPEN
+    # it's in charge of Adapter itself to properly close the database
     if self.__adapter.close():
       self.__status = self.CLOSE
+    else:
+      g_sys_log.error("Error during adapter closing")
 
   def getUserList(self):
     """Call the adapter to return the current user list
