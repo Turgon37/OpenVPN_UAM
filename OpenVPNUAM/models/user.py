@@ -66,7 +66,7 @@ class User(object):
     # internal link to database for self update
     self.__db = None
 
-  def load(self, attributs, hostnames):
+  def load(self, attributs, hostnames=[]):
     """Load an user entity with the given list of attributes and hostnames
 
     @param attributs [dict] : a key-value dict which contains attributs

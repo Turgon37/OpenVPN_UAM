@@ -42,12 +42,11 @@ class Certificate(object):
   """
 
   def __init__(self):
-    """Constructor: Build a new empty hostname
+    """Constructor: Build a new empty certificate
     """
     # database model
     self._id = None
-    self._passwd = True
-    self._is_revoked = False
+    self._is_password = True
     self._revoked_reason = None
     self._revoked_time = None
     self._certificate_begin_time = None

@@ -28,5 +28,6 @@ These class describes models for database entities used by program
 """
 from .user import User
 from .hostname import Hostname
+from .certificate import Certificate
 
 __all__ = ['user', 'hostname']

@@ -58,7 +58,7 @@ class Hostname(object):
     # internal link to database for self update
     self.__db = None
 
-  def load(self, attributs):
+  def load(self, attributs, certs=[]):
     """Load an hostname entity with attributs
 
     @param attributs [dict] : a key-value dict which contains attributs
@@ -72,6 +72,10 @@ class Hostname(object):
         setattr(self, "_" + key, attributs[key])
       else:
         g_sys_log.error('Unknown attribute from source "' + key + '"')
+    # load hostnames
+    assert isinstance(certs, list)
+    self.__lst_certificate = certs
+    # TODO sort certificates into differents lists
 
 # Getters methods
   def getName(self):
@@ -174,7 +178,7 @@ class Hostname(object):
                "\n    CREATED ON = " + str(self._creation_time) +
                "\n    UPDATED ON = " + str(self._update_time))
     for c in self.__lst_certificate:
-      content += str(c)
+      content += "\n" + str(c)
     return content
 
   def __repr__(self):
