@@ -63,7 +63,11 @@ class User(object):
     self._update_time = None
     # python model
     self.__lst_hostname = []
-    # internal link to database for self update
+    # This is the reference to the main database class
+    # it is used to perform self object update call
+    # Exemple if you want to update a attribut of an instance of this class
+    # like one of theses above, you will need to call the main database to store
+    # change into database engine
     self.__db = None
 
   def load(self, attributs, hostnames=[]):
@@ -155,6 +159,7 @@ class User(object):
     assert self._is_enabled is True
     self._is_enabled = False
 
+# utilities methods
   def __str__(self):
     """[DEBUG] Produce a description string for this user instance
 

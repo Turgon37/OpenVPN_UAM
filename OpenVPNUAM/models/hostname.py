@@ -33,6 +33,9 @@ its attributes.
 import datetime
 import logging
 
+# Project imports
+from .certificate import Certificate
+
 # Global project declarations
 g_sys_log = logging.getLogger('openvpn-uam.model.hostname')
 
@@ -54,8 +57,25 @@ class Hostname(object):
     self._creation_time = datetime.datetime.today()
     self._update_time = None
     # python model
-    self.__lst_certificate = []
-    # internal link to database for self update
+    # This is the list of NOT YET AVAILABLE certificates
+    # These certificates doesn't need to perform specific action on them
+    self.__lst_certificate_soon_valid = []
+    # This is the list of VALID certificates
+    # These certificates doesn't need to perform specific action on them
+    self.__lst_certificate_valid = []
+    # This is the list of SOON EXPIRED certificates
+    # If there is a certificates in this list it indicates that the program
+    # must begin to perform a regen of new certificate to prevent VPN accesss 
+    # failure
+    self.__lst_certificate_soon_expired = []
+    # This is the list of EXPIRED certificates
+    # Certificates in this list are sentenced to be destroyed in the next update
+    self.__lst_certificate_expired = []
+    # This is the reference to the main database class
+    # it is used to perform self object update call
+    # Exemple if you want to update a attribut of an instance of this class
+    # like one of theses above, you will need to call the main database to store
+    # change into database engine
     self.__db = None
 
   def load(self, attributs, certs=[]):
@@ -72,10 +92,36 @@ class Hostname(object):
         setattr(self, "_" + key, attributs[key])
       else:
         g_sys_log.error('Unknown attribute from source "' + key + '"')
-    # load hostnames
+    # load certificates
+    self.loadCertificate(certs)
+    
+  def loadCertificate(self, certs):
+    """Import and sort certificates into this hostname
+    
+    This function load given certificates list and sort them into four category
+    according to their living dates
+    @param certs [list<Certificate>] the pool of available certificates
+    """
     assert isinstance(certs, list)
-    self.__lst_certificate = certs
-    # TODO sort certificates into differents lists
+    # set uniq local time reference
+    cur_time = datetime.datetime.today()
+    # sort each given certificates into exiting categories
+    for cert in certs:
+      assert isinstance(cert, Certificate)
+      # SOON VALID
+      if cur_time < cert.getBeginTime():
+        self.__lst_certificate_soon_valid.append(cert)
+      # CURRENTLY VALID
+      elif cert.getBeginTime() < cur_time and cur_time < cert.getEndTime():
+        self.__lst_certificate_valid.append(cert)
+      # TODO handle SOON EXPIRED CERTIFICATES
+      # SOON EXPIRED
+      #elif cert.getBeginTime() < cur_time:
+      #  pass
+      # EXPIRED
+      else:
+        self.__lst_certificate_expired.append(cert)
+        
 
 # Getters methods
   def getName(self):
@@ -132,6 +178,14 @@ class Hostname(object):
     """
     assert self.__db is None
     self.__db = db
+    for h in self.__lst_certificate_soon_valid:
+      h.setDb(db)
+    for h in self.__lst_certificate_valid:
+      h.setDb(db)
+    for h in self.__lst_certificate_soon_expired:
+      h.setDb(db)
+    for h in self.__lst_certificate_expired:
+      h.setDb(db)
 
 # Private methods
   def __update(self):
@@ -167,9 +221,9 @@ class Hostname(object):
     self.__update()
 
   def __str__(self):
-    """[DEBUG] Produce a description string for this user instance
+    """[DEBUG] Produce a description string for this hostname instance
 
-    @return [str] a formatted string that describe this user
+    @return [str] a formatted string that describe this hostname
     """
     content = ("  HOSTNAME (" + str(self._id) + ")" +
                "\n    NAME = " + str(self._name) +
@@ -177,10 +231,17 @@ class Hostname(object):
                "\n    ONLINE STATUS = " + str(self._is_online) +
                "\n    CREATED ON = " + str(self._creation_time) +
                "\n    UPDATED ON = " + str(self._update_time))
-    for c in self.__lst_certificate:
-      content += "\n" + str(c)
+    for c in self.__lst_certificate_soon_valid:
+      content += "\n  SV-" + str(c)
+    for c in self.__lst_certificate_valid:
+      content += "\n   V-" + str(c)
+    for c in self.__lst_certificate_soon_expired:
+      content += "\n  SE-" + str(c)
+    for c in self.__lst_certificate_expired:
+      content += "\n   E-" + str(c)
     return content
 
+# utilities methods
   def __repr__(self):
     """[DEBUG] Produce a list of attribute as string for this hostname instance
 
