@@ -52,6 +52,7 @@ class Hostname(object):
     # database model
     self._id = None
     self._name = name
+    self._period_days = None
     self._is_enabled = False
     self._is_online = False
     self._creation_time = datetime.datetime.today()
@@ -65,11 +66,12 @@ class Hostname(object):
     self.__lst_certificate_valid = []
     # This is the list of SOON EXPIRED certificates
     # If there is a certificates in this list it indicates that the program
-    # must begin to perform a regen of new certificate to prevent VPN accesss 
+    # must begin to perform a regen of new certificate to prevent VPN accesss
     # failure
     self.__lst_certificate_soon_expired = []
     # This is the list of EXPIRED certificates
-    # Certificates in this list are sentenced to be destroyed in the next update
+    # Certificates in this list are sentenced to be destroyed by python garbage
+    # collector in the next DB update
     self.__lst_certificate_expired = []
     # This is the reference to the main database class
     # it is used to perform self object update call
@@ -94,10 +96,10 @@ class Hostname(object):
         g_sys_log.error('Unknown attribute from source "' + key + '"')
     # load certificates
     self.loadCertificate(certs)
-    
+
   def loadCertificate(self, certs):
     """Import and sort certificates into this hostname
-    
+
     This function load given certificates list and sort them into four category
     according to their living dates
     @param certs [list<Certificate>] the pool of available certificates
@@ -114,14 +116,9 @@ class Hostname(object):
       # CURRENTLY VALID
       elif cert.getBeginTime() < cur_time and cur_time < cert.getEndTime():
         self.__lst_certificate_valid.append(cert)
-      # TODO handle SOON EXPIRED CERTIFICATES
-      # SOON EXPIRED
-      #elif cert.getBeginTime() < cur_time:
-      #  pass
       # EXPIRED
       else:
         self.__lst_certificate_expired.append(cert)
-        
 
 # Getters methods
   def getName(self):

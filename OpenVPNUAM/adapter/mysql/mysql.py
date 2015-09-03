@@ -222,6 +222,7 @@ class Connector(Adapter):
           g_sys_log.error('Error during connection to mysql database ' +
                           str(e))
           return None
+      helper_log_fatal(g_sys_log, 'error_database.mysql.fatal')
       return None
     except Exception as e:
       g_sys_log.error('Error during execution of this query ' + str(e))
@@ -315,8 +316,9 @@ class Connector(Adapter):
     cur = self.__queryDict(
         'SELECT ' + MysqlTableUserCertificate.getSelectColumns() +
         ' FROM ' + MysqlTableUserCertificate.getName() +
-        ' WHERE ' + MysqlTableUserCertificate.getForeign() + '= %s',
-        (id,))
+        ' WHERE ' + MysqlTableUserCertificate.getForeign() + '= %s' +
+        ' AND %s < `certificate_end_time`',
+        (id, datetime.datetime.today()))
     if cur is None:
       return None
     else:

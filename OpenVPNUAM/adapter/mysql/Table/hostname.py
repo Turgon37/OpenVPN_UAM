@@ -33,6 +33,7 @@ class MysqlTableHostname(Table):
   column_options = {'id_hostname': {'type': int, 'rename': 'id'},
                     'fk_user_id': {'type': int, 'hide': True},
                     'hostname': {'type': str, 'rename': 'name'},
+                    'period_days': {'type': int},
                     'is_enabled': {'type': bool},
                     'creation_time': {'type': str},
                     'update_time': {'type': str},
