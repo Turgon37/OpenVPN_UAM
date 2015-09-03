@@ -76,13 +76,8 @@ class OVPNUAMConfigParser(ConfigParser):
     if path is None:
       return False
 
-    try:
-      if path in self.read(path):
-        self.__is_config_loaded = True
-        return self.__is_config_loaded
-    except Error as e:
-      print(e, file=sys.stderr)
-      return self.__is_config_loaded
+    if path in self.read(path):
+      self.__is_config_loaded = True
     return self.__is_config_loaded
 
   def isLoaded(self):
