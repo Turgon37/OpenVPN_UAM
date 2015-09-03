@@ -2,7 +2,7 @@
 
 # This file is a part of OpenVPN-UAM
 #
-# Copyright (c) 2015 Thomas PAJON
+# Copyright (c) 2015 Thomas PAJON, Pierre GINDRAUD
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,35 +24,27 @@
 
 """PKI - Public Key Infrastructure program class
 
-This program class aim to manage the users registering, certificates generation, their 
+This class is in charge of management of all certificates operations
 renewal and also their revocation.
 """
 
 # System imports
 import logging
 
-from models/user import User
+# Project imports
+from models.user import User
 
 # Global project declarations
-g_sys_log = logging.getLogger('openvpn-uam')
+g_sys_log = logging.getLogger('openvpn-uam.pki')
 
 
-class PKI:
-  """Build an instance of the pki program class
+class PublicKeyInfrastructure:
+  """Build an instance of the pki model class
 
   This instance must be called in the openvpn uam program class
   """
 
-  def __init__(self):
-    """Constructor : Build the program lead object
+  def __init__(self, confparser):
+    """Constructor : Build a new PKI API instance
     """
-    self.__list_users = []
-  
-  def start(self):
-    self.createUser("mail@gmail.com", "user1")
-
-  def createUser(self, mail, hostname, is_enable = True):
-    user = User(mail, is_enable)
-
-    user.addHostname(hostname)
-    self.__list_users.append(user)
+    self.__cp = confparser
