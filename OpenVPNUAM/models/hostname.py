@@ -79,6 +79,8 @@ class Hostname(object):
     # like one of theses above, you will need to call the main database to store
     # change into database engine
     self.__db = None
+    # This is the current system datetime
+    self.__cur_time = None
 
   def load(self, attributs, certs=[]):
     """Load an hostname entity with attributs
@@ -107,6 +109,7 @@ class Hostname(object):
     assert isinstance(certs, list)
     # set uniq local time reference
     cur_time = datetime.datetime.today()
+    self.__cur_time = cur_time
     # sort each given certificates into exiting categories
     for cert in certs:
       assert isinstance(cert, Certificate)
@@ -115,12 +118,23 @@ class Hostname(object):
         self.__lst_certificate_soon_valid.append(cert)
       # CURRENTLY VALID
       elif cert.getBeginTime() < cur_time and cur_time < cert.getEndTime():
-        self.__lst_certificate_valid.append(cert)
+        vd = self.__getValidityDuration(cert)
+        if vd <= timedelta(0, 0, 6, 0, 0):
+          self.sortValidCertificate(cert, 0, 0, 20)
+        elif vd <= timedelta(0, 1, 0, 0, 0) and vd > timedelta(0, 0, 6, 0, 0):
+          self.sortValidCertificate(cert, 0, 4, 0)          
+        elif vd <= timedelta(0, 3, 0, 0, 0) and vd > timedelta(0, 1, 0, 0, 0):
+          self.sortValidCertificate(cert, 1, 0, 0)
+        elif vd <= timedelta(0, 7, 0, 0, 0) and vd > timedelta(0, 3, 0, 0, 0):
+          self.sortValidCertificate(cert, 2, 0, 0)
+        else:
+          self.sortValidCertificate(cert, 4, 0, 0)
       # EXPIRED
       else:
         self.__lst_certificate_expired.append(cert)
 
 # Getters methods
+  @property
   def getName(self):
     """Get name of this hostname
 
@@ -128,6 +142,7 @@ class Hostname(object):
     """
     return self._name
 
+  @property
   def getCreationTime(self):
     """Get the creation of the hostname
 
@@ -135,6 +150,7 @@ class Hostname(object):
     """
     return self._creation_time
 
+  @property
   def getUpdateTime(self):
     """getDateUpdate(): Get the date of the last update of
     the hostname
@@ -143,6 +159,7 @@ class Hostname(object):
     """
     return self._update_time
 
+  @property
   def getActivationState(self):
     """getActivationState(): get the activation state of the
     hostname
@@ -151,6 +168,7 @@ class Hostname(object):
     """
     return self._is_enabled
 
+  @property
   def getStatus(self):
     """getStatus(): Get if the hostname is online
 
@@ -159,6 +177,7 @@ class Hostname(object):
     return self._is_online
 
 # Setters methods
+  @property
   def setName(self, name):
     """setName(): Change the name of the hostname
 
@@ -167,6 +186,7 @@ class Hostname(object):
     self._name = name
     self.__update()
 
+  @property
   def setDb(self, db):
     """Set the internal DB link to allow self update
 
@@ -203,6 +223,14 @@ class Hostname(object):
     self._is_enabled = False
     self.__update()
 
+  def getValidityDuration(self, cert):
+    """Calculate the validity duration of a certificate
+
+    @param cert [Certificate] : a certificate
+    @return [datetime] : validity duration of the certificate
+    """
+    return cert.getEndTime - cert.getBeginTime
+
   def setOnline(self):
     """setOnline(): Change the status of the hostname to
     online
@@ -216,6 +244,15 @@ class Hostname(object):
     """
     self._is_online = False
     self.__update()
+
+  def sortValidCertificate(self, cert, days, hours, minutes):
+    """sortValidCertificate(): Check if a certificate is just valid
+    or if it is valid and soon expired.
+    """
+    if self.__cur_time < cert.getEndTime - timedelta(0, days, hours, minutes, 0):
+      self.__lst_certificate_valid.append(cert)
+    else:
+      self.__lst_certificate_soon_expired.append(cert)    
 
   def __str__(self):
     """[DEBUG] Produce a description string for this hostname instance
