@@ -74,6 +74,7 @@ class Certificate(object):
         g_sys_log.error('Unknown attribute from source "' + key + '"')
 
 # Getters methods
+  @property
   def getBeginTime(self):
     """Return the NOT BEFORE time of this certificate
     
@@ -82,6 +83,7 @@ class Certificate(object):
     """
     return self._certificate_begin_time
 
+  @property
   def getEndTime(self):
     """Return the NOT AFTER time of this certificate
   
@@ -89,6 +91,14 @@ class Certificate(object):
     expired
     """
     return self._certificate_end_time
+
+  @property
+  def getValidityDuration(self):
+    """Calculate the validity duration of a certificate
+
+    @return [datetime] : validity duration of the certificate
+    """
+    return self.getEndTime - self.getBeginTime
 
 # Setters methods
   def setDb(self, db):
