@@ -86,7 +86,49 @@ class Connector(Adapter):
     # default parameter to use during database opening
     self.__param = dict(charset='utf8mb4')
 
-  def open(self, config):
+  def load(self, config):
+    """Load the MySQL settings and check it
+
+    @return [bool] a boolean indicates success status
+    """
+    # if there is no current config available try to use the given
+    assert self.__config is None
+    assert config is not None
+
+    self.__config = config
+
+    if 'db' not in config:
+      g_sys_log.error('Require \'db\' option in configuration file')
+      return False
+
+    if 'server_poll_time' in config:
+      try:
+        self.__server_poll_time = float(config['server_poll_time'])
+      except ValueError as e:
+        g_sys_log.error('Invalid format for "server_poll_time" option')
+        return False
+
+    # default parameters
+    if 'user' not in config:
+      config['user'] = 'root'
+    self.__param['user'] = config['user']
+    if 'passwd' in config and len(config['passwd']) > 0:
+      self.__param['passwd'] = config['passwd']
+    self.__param['db'] = config['db']
+
+    # access to server
+    if 'unix_socket' in config:
+      # Connect to the database with UNIX socket
+      self.__param['unix_socket'] = config['unix_socket']
+    elif 'host' in config:
+      # Connect to the database with TCP
+      self.__param['host'] = config['host']
+    else:
+      g_sys_log.warning('Mysql will used default address/socket to' +
+                        'connect to the server')
+    return True
+
+  def open(self):
     """Open the database for read/write operation
 
     Parse given configuration and try to open the database socket
@@ -94,44 +136,6 @@ class Connector(Adapter):
     @return [boolean] inform about operation successfull True if success
               False otherwise
     """
-    # if there is no current config available try to use the given
-    if self.__config is None:
-      # required parameters
-      if config is None:
-        g_sys_log.error('No configuration given')
-        return False
-      else:
-        self.__config = config
-
-      if 'db' not in config:
-        g_sys_log.error('Require \'db\' option in configuration file')
-        return False
-
-      if 'server_poll_time' in config:
-        try:
-          self.__server_poll_time = float(config['server_poll_time'])
-        except ValueError as e:
-          g_sys_log.error('Invalid format for "server_poll_time" option')
-          return False
-
-      # default parameters
-      if 'user' not in config:
-        config['user'] = 'root'
-      self.__param['user'] = config['user']
-      if 'passwd' in config and len(config['passwd']) > 0:
-        self.__param['passwd'] = config['passwd']
-      self.__param['db'] = config['db']
-
-      # access to server
-      if 'unix_socket' in config:
-        # Connect to the database with UNIX socket
-        self.__param['unix_socket'] = config['unix_socket']
-      elif 'host' in config:
-        # Connect to the database with TCP
-        self.__param['host'] = config['host']
-      else:
-        g_sys_log.warning('Mysql will used default address/socket to' +
-                          'connect to the server')
     # open the database and handle all error type because it the first
     # opening of the DB
     try:
@@ -150,12 +154,15 @@ class Connector(Adapter):
     """
     if self.__config is None:
       return False
+    if self.__status == self.OPEN:
+      return True
 
     # if the last time we have tried to reach the server is
     # over the defined value RETRY
     if time.time() - self.__server_poll_ref >= self.__server_poll_time:
+      g_sys_log.debug('Try to connect to MySQL server')
       # update the reference time by now
-      self.__poll_ref = time.time()
+      self.__server_poll_ref = time.time()
       self.__connection = MySQLdb.connect(**self.__param)
       self.__status = self.OPEN
       return True
@@ -213,7 +220,7 @@ class Connector(Adapter):
             g_sys_log.info('Connection with MySQL server restarted after ' +
                            'being cut off')
 
-            return None
+          return None
         # error in network unable to re-open connection
         except MySQLdb.OperationalError as e:
           if e.args[0] in self.CONNECTION_ERROR_CODE:
@@ -222,6 +229,7 @@ class Connector(Adapter):
           g_sys_log.error('Error during connection to mysql database ' +
                           str(e))
           return None
+      # unhandled error
       helper_log_fatal(g_sys_log, 'error_database.mysql.fatal')
       return None
     except Exception as e:
