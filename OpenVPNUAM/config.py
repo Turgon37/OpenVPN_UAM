@@ -56,6 +56,7 @@ class OVPNUAMConfigParser(ConfigParser):
   LOGLEVEL_MAP = ['ERROR', 'WARN', 'INFO', 'DEBUG']
   MAIN_SECTION = 'main'
   DATABASE_SECTION = 'database'
+  PKI_SECTION = 'pki'
 
   def __init__(self):
     """Constructor : init a new config parser
