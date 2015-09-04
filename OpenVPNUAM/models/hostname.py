@@ -114,7 +114,7 @@ class Hostname(object):
       if cur_time < cert.getBeginTime():
         self.__lst_certificate_soon_valid.append(cert)
       # CURRENTLY VALID
-      elif cert.getBeginTime() < cur_time and cur_time < cert.getEndTime():
+      elif cert.getBeginTime() <= cur_time and cur_time <= cert.getEndTime():
         self.__lst_certificate_valid.append(cert)
       # EXPIRED
       else:
