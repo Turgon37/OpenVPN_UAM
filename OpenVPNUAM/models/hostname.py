@@ -141,41 +141,16 @@ class Hostname(object):
     @return [bool] : the activation state of the hostname
     """
     return self._is_enabled
-
-  def getName(self):
+  
+  @property
+  def name(self):
     """Get name of this hostname
 
     @return [str] : the name of the hostname
     """
     return self._name
 
-  @property
-  def getCreationTime(self):
-    """Get the creation of the hostname
-
-    @return [datetime] : the creation date of the hostname
-    """
-    return self._creation_time
-
-  @property
-  def getUpdateTime(self):
-    """getDateUpdate(): Get the date of the last update of
-    the hostname
-
-    @return [datetime] : date of the last update of the hostname
-    """
-    return self._update_time
-
-  @property
-  def getStatus(self):
-    """getStatus(): Get if the hostname is online
-
-    @return [bool] : status of the hostname
-    """
-    return self._is_online
-
 # Setters methods
-  @property
   def setName(self, name):
     """setName(): Change the name of the hostname
 
@@ -184,7 +159,6 @@ class Hostname(object):
     self._name = name
     self.__update()
 
-  @property
   def setDb(self, db):
     """Set the internal DB link to allow self update
 
