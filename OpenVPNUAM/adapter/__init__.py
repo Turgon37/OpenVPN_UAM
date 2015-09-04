@@ -30,12 +30,13 @@ adapter
 from .. import models as Model
 from ..helpers import *
 
+
 class Adapter(object):
   """This is an abstract class that describe a basic database adapter"""
 
   # constant for adapter connection types
-  LOCAL=0
-  REMOTE=1
+  LOCAL = 0
+  REMOTE = 1
 
   def __init__(self, name, type):
     """You must call it in your adapter __init__
@@ -46,30 +47,42 @@ class Adapter(object):
     @param type [integer] the connection type of the adapter is use.
     see constants above for other details
     """
-    self.name = name
-    self.type = type
+    self.__name = name
+    self.__type = type
 
-  def getName(self):
+  @property
+  def name(self):
     """Return the name of this adapter
 
     @return [str] the name of this adapter
     """
-    return self.name
+    return self.__name
 
-  def getType(self):
+  @property
+  def type(self):
     """Return the type of this adapter
 
     @return [integer] the Adapter constants that desribe the type
     """
-    return self.type
-
-  def open(self, config):
+    return self.__type
+    
+  def load(self, config):
+    """This function must be overloaded
+    
+    Make here all your database adapter configuration checking, error here are
+    only relative to adapter configuration mistake
+    @param config [dict] a key-value dict that contains all keyword in
+    corresponding section of the config file
+    @return [boolean] True if the open success, False otherwise
+    """
+    raise NotImplementedError()
+    
+  def open(self):
     """This function must be overloaded
 
-    This function must open/load the database. Make here all
-    needed operation to start your database.
-    @param config [dict]a key-value dict that contains all keyword in
-    corresponding section of the config file
+    This function must open the database. Make here all
+    needed operation to start your database. Error that must
+    appear here are only relatives to database opening
     @return [boolean] True if the open success, False otherwise
     """
     raise NotImplementedError()
