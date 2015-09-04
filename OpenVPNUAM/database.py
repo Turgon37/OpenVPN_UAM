@@ -76,6 +76,10 @@ class Database(object):
     self.__db_poll_ref = 0.0
     # STATIC number of second between two consecutive poll from adapter
     self.__db_poll_time = 600.0
+    # number of second to wait for database to be available on start
+    # this value will not be use in this class but must be read from another
+    # overclass
+    self.__db_wait_time = 30
 
   def load(self):
     """Load parameter from config
@@ -83,20 +87,31 @@ class Database(object):
     Check the input parameter to be sure they are valid
     @return [bool] True if parameter success, False otherwise
     """
+    assert self.__status == self.UNLOAD
     if not self.__cp.has_section(self.__cp.DATABASE_SECTION):
+      g_sys_log.debug('Missing database section in configuration file')
       return False
-      
+
     # try to load db_poll_time from configuration
-    if 'db_poll_time' not in self.__cp.getItems(self.__cp.DATABASE_SECTION):
-      g_sys_log.debug('Use default database poll time of ' +
-                      str(self.__db_poll_time))
-    else:
-      try:
-        self.__db_poll_time = float(
-            self.__cp.getItems(self.__cp.DATABASE_SECTION)['db_poll_time'])
-      except ValueError as e:
-        g_sys_log.error('Invalid format for "db_poll_time" option')
-        return False
+    self.__db_poll_time = self.__cp.getfloat(self.__cp.DATABASE_SECTION,
+                                             'db_poll_time',
+                                             fallback=self.__db_poll_time)
+
+    self.__db_wait_time = self.__cp.getfloat(self.__cp.DATABASE_SECTION,
+                                             'db_wait_time',
+                                             fallback=self.__db_wait_time)
+
+    # instanciate a new Adapter object to be use during this session
+    self.__adapter = self.__newAdapter()
+    if self.__adapter is None:
+      return False
+
+    # adapter config checking
+    if not self.__cp.has_section(self.__adapter.name):
+      g_sys_log.error('Configuration file require a section with name "' +
+                      self.__adapter.name + '"')
+      return False
+
     self.__status = self.CLOSE
     return True
 
@@ -110,73 +125,96 @@ class Database(object):
     name = self.__cp.getItems(self.__cp.DATABASE_SECTION)['adapter']
     adapter = None
 
+    g_sys_log.debug('Loading database adapter for "' + name + '"')
     try:
-      g_sys_log.debug('Loading database adapter for "' + name + '"')
       mod = __import__('OpenVPNUAM.adapter.' + name, fromlist=['Connector'])
       adapter = mod.Connector()
-      # adapter class checking
-      if not isinstance(adapter, Adapter):
-        adapter = None
-        raise Exception('Adapter "' + name + '" must extend Adapter class')
-      if adapter.getName() != name:
-        adapter = None
-        raise Exception('Adapter name "' + adapter.getName() +
-                        '" doesn\'t match with class name "' + name + '"')
     except ImportError as e:
-      g_sys_log.error('Adapter "' + name +
-                      '" cannot be found in adapter/ directory. ' + str(e))
-    except Exception as e:
-      g_sys_log.error('Adapter "' + name +
-                      '" has encounter an error: ' + str(e))
-    finally:
-      return adapter
+      g_sys_log.error('Adapter "%s" cannot be found in adapter/ directory. %s',
+                      name,
+                      str(e))
+      return None
+    except AttributeError as e:
+      g_sys_log.error('Adapter "%s" must use Connector as class name. %s',
+                      name,
+                      str(e))
+      return None
+    # adapter class checking
+    if not isinstance(adapter, Adapter):
+      g_sys_log.error('Adapter "%s" must extend Adapter class',
+                      adapter.name)
+      return None
+
+    # adapter class name checking
+    if adapter.name != name:
+      g_sys_log.error('Adapter name "%s" doesn\'t match with class name %s',
+                      adapter.name,
+                      name)
+      return None
+
+    if not self.__cp.has_section(adapter.name):
+      g_sys_log.error('Adapter "%s" required a configuration section with ' +
+                      'the same name',
+                      name)
+      return None
+
+    try:
+      if not adapter.load(self.__cp.getItems(adapter.name)):
+        return None
+    except KeyError as e:
+      g_sys_log.error('Adapter "%s" required a missing parameter. %s',
+                      name,
+                      str(e))
+      return None
+    return adapter
 
   def open(self):
-    """Load the configured adapter as main database adapter
+    """Say to the adapter to open it database, and print debug message
 
-    Load the configured adapter and run open() on it to load the associated
-    database
-    @return [boolean] : a boolean indicates if the operation have succeded or
+    @return [bool] : a boolean indicates if the operation have succeded or
+    not
+    """
+    if self.__openAdapter():
+      g_sys_log.debug('Opened database type "%s"', self.__adapter.name)
+      return True
+    else:
+      # loading error
+      g_sys_log.error('Adapter "%s" failed to open database',
+                      self.__adapter.name)
+      return False
+
+  def __openAdapter(self):
+    """This function open the database adapter and handle only severe error
+
+    @return [bool] : a boolean indicates if the operation have succeded or
     not
     """
     assert self.__status == self.CLOSE
-    # instanciate a new Adapter object to be use during this session
-    if self.__adapter is None:
-      self.__adapter = self.__newAdapter()
-
-    adapter = self.__adapter
-    assert adapter is not None
-
-    # adapter config checking
-    if not self.__cp.has_section(adapter.getName()):
-      g_sys_log.error('Configuration file require a section with name "' +
-                      adapter.getName() + '"')
-      return False
+    assert self.__adapter is not None
 
     try:
       # open database
-      if adapter.open(self.__cp.getItems(adapter.getName())):
-        g_sys_log.debug('Opened database type "' + adapter.getName() + '"')
+      if self.__adapter.open():
         self.__status = self.OPEN
         return True
       else:
-        # loading error
-        g_sys_log.error('Adapter "' + adapter.getName() +
-                        '" failed to open database')
         return False
     except KeyError as e:
-      g_sys_log.error('Adapter "' + adapter.getName() + '" require "' +
-                      str(e) + ' missing parameters see adapter documentation')
+      g_sys_log.error('Adapter "%s" require %s missing parameters.' +
+                      'See adapter documentation' +
+                      self.__adapter.name +
+                      str(e))
       return False
     except Exception as e:
-      g_sys_log.error('Adapter "' + adapter.getName() +
-                      '" has encounter an error: ' + str(e))
+      g_sys_log.error('Adapter "%s" has encounter an error: %s' +
+                      self.__adapter.name +
+                      str(e))
       return False
 
   def close(self):
     """Load the configured adapter as main database adapter
 
-    @return [boolean] : a boolean indicates if the operation have succeded or
+    @return [bool] : a boolean indicates if the operation have succeded or
     not
     """
     assert self.__status == self.OPEN
@@ -186,6 +224,29 @@ class Database(object):
     else:
       g_sys_log.error("Error during adapter closing")
 
+# Getters methods
+  @property
+  def status(self):
+    """Return status of this database
+    """
+    return self.__status
+
+  @property
+  def db_poll_time(self):
+    """Return the time between two poll to database
+
+    @return [int] The number of second from the next database polling
+    """
+    return self.__db_poll_time
+
+  @property
+  def db_wait_time(self):
+    """Return the time between two poll to database
+
+    @return [int] The number of second from the next database polling
+    """
+    return self.__db_wait_time
+
   def getUserList(self):
     """Call the adapter to return the current user list
 
@@ -194,6 +255,7 @@ class Database(object):
     assert self.__status == self.OPEN
     # refresh the internal cached list by ask again the adapter
     if time.time() - self.__db_poll_ref >= self.__db_poll_time:
+      g_sys_log.debug("=> Pull data from the adapter")
       l_u = self.__adapter.getUserList()
       # error in data retrieving from DB
       if l_u is not None:
@@ -204,3 +266,14 @@ class Database(object):
         self.__l_user = l_u
 
     return self.__l_user
+
+  def getEnabledUserList(self):
+    """Return only the enabled user list
+
+    @return [list<User>] the current list of user
+    """
+    enabled_user = []
+    for user in self.getUserList():
+      if user.is_enabled:
+        enabled_user.append(user)
+    return enabled_user
