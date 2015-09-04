@@ -135,6 +135,13 @@ class Hostname(object):
 
 # Getters methods
   @property
+  def is_enabled(self):
+    """Return get the activation state of this hostname
+
+    @return [bool] : the activation state of the hostname
+    """
+    return self._is_enabled
+
   def getName(self):
     """Get name of this hostname
 
@@ -158,15 +165,6 @@ class Hostname(object):
     @return [datetime] : date of the last update of the hostname
     """
     return self._update_time
-
-  @property
-  def getActivationState(self):
-    """getActivationState(): get the activation state of the
-    hostname
-
-    @return [bool] : the activation state of the hostname
-    """
-    return self._is_enabled
 
   @property
   def getStatus(self):

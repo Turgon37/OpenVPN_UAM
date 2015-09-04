@@ -62,6 +62,7 @@ class User(object):
     self._creation_time = datetime.datetime.today()
     self._update_time = None
     # python model
+    # This is the list of current user's ostname
     self.__lst_hostname = []
     # This is the reference to the main database class
     # it is used to perform self object update call
@@ -99,6 +100,25 @@ class User(object):
     @return [list] : list of hostnames used by the user
     """
     return self.__lst_hostname
+
+  def getEnabledHostnameList(self):
+    """Get the list of the user's hostname which are enabled
+
+    @return [list<Hostname>] : list of enabled hostnames used by the user
+    """
+    l_host = []
+    for host in self.__lst_hostname:
+      if host.is_enabled:
+        l_host.append(host)
+    return l_host
+
+  @property
+  def is_enabled(self):
+    """Return get the activation state of this hostname
+
+    @return [bool] : the activation state of the hostname
+    """
+    return self._is_enabled
 
   def getId(self):
     """Return the current User ID
