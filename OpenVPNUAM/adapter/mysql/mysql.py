@@ -237,13 +237,30 @@ class Connector(Adapter):
       return None
     return cursor
 
-  def __queryDict(self, query, args=None):
+  def __queryDict(self, query, args=None, col_opts=None):
     """Execute a query with a DictCursor
 
-    @param [str] query : the query to execute
+    @param query [str] : the query to execute
+    @param args [tuple] : a tuple of replacement value for query
+    @param col_opts [dict] : the column option for post-treatment
     """
     cur = self.__connection.cursor(MySQLdb.cursors.DictCursor)
-    return self.__queryHelper(cur, query, args)
+    res = self.__queryHelper(cur, query, args)
+    if col_opts is not None and res is not None:
+      # LOOP over each row of result
+      for r in res:
+        # loop over each col in a row
+        for col in r:
+          # if column is configured in opts
+          if col in col_opts:
+            # TYPE is given for this data column
+            if 'type' in col_opts[col]:
+              # APPLY the configured type
+              if col_opts[col]['type'] == bool:
+                r[col] = bool(r[col])
+              if col_opts[col]['type'] == int:
+                r[col] = int(r[col])
+    return res
 
   def getUserList(self):
     """Query the database to retrieve the list of user with theirs hostnames
@@ -256,7 +273,8 @@ class Connector(Adapter):
     """
     l_user = []
     cur = self.__queryDict('SELECT ' + MysqlTableUser.getSelectColumns() +
-                           'FROM ' + MysqlTableUser.getName())
+                           'FROM ' + MysqlTableUser.getName(),
+                           col_opts=MysqlTableUser.getColumnOptions())
     # if the result is None immediatly return None for the entire query
     if cur is None:
       return None
@@ -289,7 +307,8 @@ class Connector(Adapter):
     cur = self.__queryDict('SELECT ' + MysqlTableHostname.getSelectColumns() +
                            ' FROM ' + MysqlTableHostname.getName() +
                            ' WHERE ' + MysqlTableHostname.getForeign() + '= %s',
-                           (id,))
+                           (id,),
+                           MysqlTableHostname.getColumnOptions())
     if cur is None:
       return None
     else:
@@ -326,7 +345,8 @@ class Connector(Adapter):
         ' FROM ' + MysqlTableUserCertificate.getName() +
         ' WHERE ' + MysqlTableUserCertificate.getForeign() + '= %s' +
         ' AND %s < `certificate_end_time`',
-        (id, datetime.datetime.today()))
+        (id, datetime.datetime.today()),
+        MysqlTableUserCertificate.getColumnOptions())
     if cur is None:
       return None
     else:
