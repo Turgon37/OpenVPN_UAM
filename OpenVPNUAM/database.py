@@ -89,7 +89,7 @@ class Database(object):
     """
     assert self.__status == self.UNLOAD
     if not self.__cp.has_section(self.__cp.DATABASE_SECTION):
-      g_sys_log.debug('Missing database section in configuration file')
+      g_sys_log.error('Missing database section in configuration file')
       return False
 
     # try to load db_poll_time from configuration
