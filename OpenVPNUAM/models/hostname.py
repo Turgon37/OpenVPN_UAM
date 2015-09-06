@@ -31,6 +31,7 @@ its attributes.
 
 # System imports
 import datetime
+from datetime import timedelta
 import logging
 
 # Project imports
@@ -111,21 +112,38 @@ class Hostname(object):
     for cert in certs:
       assert isinstance(cert, Certificate)
       # SOON VALID
-      if cur_time < cert.getBeginTime():
+      if cur_time < cert.certificate_begin_time:
         self.__lst_certificate_soon_valid.append(cert)
       # CURRENTLY VALID
-      elif cert.getBeginTime() <= cur_time and cur_time <= cert.getEndTime():
-        vd = cert.getValidityDuration
+      elif (cert.certificate_begin_time <= cur_time and
+            cur_time <= cert.certificate_end_time):
+        vd = cert.getValidityDuration()
+        # sort certificates into differents category by their
+        # validity duration
+        d = 0
+        h = 0
+        m = 0
+        # VD <= 6HOURS : 20minutes
         if vd <= timedelta(hours=6):
-          self.sortValidCertificate(cert, 0, 0, 20)
-        elif vd <= timedelta(days=1) and vd > timedelta(hours=6):
-          self.sortValidCertificate(cert, 0, 4, 0)
-        elif vd <= timedelta(days=3) and vd > timedelta(days=1):
-          self.sortValidCertificate(cert, 1, 0, 0)
-        elif vd <= timedelta(days=7) and vd > timedelta(days=3):
-          self.sortValidCertificate(cert, 2, 0, 0)
+          m = 20
+        # 6HOURS < VD <= 1DAY : 4hours
+        elif timedelta(hours=6) < vd and vd <= timedelta(days=1):
+          h = 4
+        # 1DAY < VD <= 3DAYS : 1day
+        elif timedelta(days=1) < vd and vd <= timedelta(days=3):
+          d = 1
+        # 3DAYS < VD <= 7DAYS : 2days
+        elif timedelta(days=3) < vd and vd <= timedelta(days=7):
+          d = 2
+        # 7DAYS < VD : 4days
         else:
-          self.sortValidCertificate(cert, 4, 0, 0)
+          d = 4
+        # if current timedate is out of expiry anticipation bounds
+        if cur_time < (cert.certificate_end_time -
+                       timedelta(days=d, hours=h, minutes=m)):
+          self.__lst_certificate_valid.append(cert)
+        else:
+          self.__lst_certificate_soon_expired.append(cert)
       # EXPIRED
       else:
         self.__lst_certificate_expired.append(cert)
@@ -138,7 +156,7 @@ class Hostname(object):
     @return [bool] : the activation state of the hostname
     """
     return self._is_enabled
-  
+
   @property
   def name(self):
     """Get name of this hostname
@@ -148,14 +166,6 @@ class Hostname(object):
     return self._name
 
 # Setters methods
-  def setName(self, name):
-    """setName(): Change the name of the hostname
-
-    @param name [str] : name of the hostname
-    """
-    self._name = name
-    self.__update()
-
   def setDb(self, db):
     """Set the internal DB link to allow self update
 
@@ -172,6 +182,31 @@ class Hostname(object):
       h.setDb(db)
     for h in self.__lst_certificate_expired:
       h.setDb(db)
+
+# API methods
+  def updateCertificateList(self):
+    """Sort the list of certificate according to their expiry date
+
+    This function mix all certificate into a single list and pass it to the
+    loadCertificate() to be newly sorted by different categories
+    """
+    lst_all = []
+
+    for h in self.__lst_certificate_soon_valid:
+      lst_all.append(h)
+    self.__lst_certificate_soon_valid = []
+
+    for h in self.__lst_certificate_valid:
+      lst_all.append(h)
+    self.__lst_certificate_valid = []
+
+    for h in self.__lst_certificate_soon_expired:
+      lst_all.append(h)
+    self.__lst_certificate_soon_expired = []
+
+    # DON'T CARE ABOUT EXPIRED CERTIFICATE
+
+    self.loadCertificate(lst_all)
 
 # Private methods
   def __update(self):
@@ -206,19 +241,7 @@ class Hostname(object):
     self._is_online = False
     self.__update()
 
-  def sortValidCertificate(self, cert, d, h, m):
-    """sortValidCertificate(): Check if a certificate is just valid
-    or if it is valid and soon expired.
-
-    @param d [int] : number of days
-           h [int] : number of hours
-           m [int] : number of minutes
-    """
-    if self.__cur_time < cert.getEndTime - timedelta(days=d, hours=h, minutes=m):
-      self.__lst_certificate_valid.append(cert)
-    else:
-      self.__lst_certificate_soon_expired.append(cert)
-
+# DEBUG methods
   def __str__(self):
     """[DEBUG] Produce a description string for this hostname instance
 
@@ -240,7 +263,6 @@ class Hostname(object):
       content += "\n   E-" + str(c)
     return content
 
-# utilities methods
   def __repr__(self):
     """[DEBUG] Produce a list of attribute as string for this hostname instance
 
