@@ -293,6 +293,9 @@ class Connector(Adapter):
         else:
           u.load(l, l_h)
           l_user.append(u)
+    cur.close()
+    # Commit to prevent MySQL isolation
+    self.__connection.commit()
     return l_user
 
   def getHostnameListFromUserId(self, id):
@@ -325,6 +328,7 @@ class Connector(Adapter):
         else:
           h.load(r, l_c)
           l_host.append(h)
+    cur.close()
     return l_host
 
   def getUserCertificateListFromHostnameId(self, id):
@@ -356,4 +360,5 @@ class Connector(Adapter):
         c = Model.Certificate()
         c.load(l)
         l_cert.append(c)
+    cur.close()
     return l_cert
