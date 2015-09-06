@@ -53,9 +53,9 @@ logger = logging.getLogger('openvpnuam-launcher')
 
 
 class OpenVPNUAMLauncher(object):
-  """A simple launcher class of the netsav program, run a netsav instance with custom args
+  """A simple launcher class of the OpenVPN UAM program
 
-  Use a both system shell arg and static configuration to run a netsav instance
+  Use a both system shell args and static configuration to run an instance
   See usage function below
   """
 
