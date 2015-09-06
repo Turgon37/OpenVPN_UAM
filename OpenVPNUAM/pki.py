@@ -30,15 +30,22 @@ renewal and also their revocation.
 
 # System imports
 import logging
+import os
+
+try:
+  import OpenSSL
+except ImportError:
+  raise Exception("Module OpenSSL required " +
+                  " https://pypi.python.org/pypi/pyOpenSSL")
 
 # Project imports
-from models.user import User
+from .config import Error
 
 # Global project declarations
 g_sys_log = logging.getLogger('openvpn-uam.pki')
 
 
-class PublicKeyInfrastructure:
+class PublicKeyInfrastructure(object):
   """Build an instance of the pki model class
 
   This instance must be called in the openvpn uam program class
@@ -48,3 +55,128 @@ class PublicKeyInfrastructure:
     """Constructor : Build a new PKI API instance
     """
     self.__cp = confparser
+    # path to CA cert
+    self.__certificate_authority = None
+    # path to CA key
+    # needed to certify new certificates for hostnames
+    self.__certificate_authority_key = None
+    # Path to the server certificate, use to ensure that this certificate is
+    # still valid
+    self.__server_certificate = None
+    # This directory will contains newly created certificates
+    self.__new_cert_directory = "certificates/"
+
+  def loadRequired(self):
+    """Return a boolean indicates if PKI is ready to work or not
+
+    This function check things required by PKI working and return a boolean
+    that indicates if the PKI is ready to work with certificate or not
+    @return [bool] The ready status
+    """
+    # check PKI section in configuration file
+    if not self.__cp.has_section(self.__cp.PKI_SECTION):
+      g_sys_log.error('Missing pki section in configuration file')
+      return False
+    sec = self.__cp.getItems(self.__cp.PKI_SECTION)
+
+    # read the new cert directory path from config file
+    self.__new_cert_directory = self.__cp.get(
+        self.__cp.PKI_SECTION,
+        'cert_directory',
+        fallback=self.__new_cert_directory)
+
+    # if cert path doesn't exist
+    if not os.path.exists(self.__new_cert_directory):
+      # create it
+      g_sys_log.info('Creating directory "%s" for new certificate',
+                     self.__new_cert_directory)
+      try:
+        os.mkdir(self.__new_cert_directory)
+      except OSError as e:
+        g_sys_log.error('File "%s" already exist', self.__new_cert_directory)
+        return False
+    # if cert path already exist
+    else:
+      # check if it is a valid directory
+      if not os.path.isdir(self.__new_cert_directory):
+        g_sys_log.error('Certificate directory is invalid')
+        return False
+    
+    try:
+      self.__certificate_authority = self.loadCertificate(self.__cp.get(
+          self.__cp.PKI_SECTION,
+          'ca'))
+      self.__certificate_authority_key = self.loadPrivateKey(self.__cp.get(
+          self.__cp.PKI_SECTION,
+          'ca_key'))
+    except Error as e:
+      g_sys_log.error('Configuration error : ' + str(e))
+      return False
+
+    return True
+
+  def loadCertificate(self, path):
+    """Import an existing certificate from file to python object
+
+    @param path [str] : the path to the certificate file to import
+    @return [OpenSSL.crypto.X509] the certificate object that correspond to the
+                                  certificate file
+            [None] if an error occur
+    """
+    assert path is not None
+    try:
+      # open file in text mode
+      f_cert = open(path, 'rt').read()
+    except IOError as e:
+      g_sys_log.error('Unable to open certificate file : ' + str(e))
+      return None
+
+    lib_crypto = OpenSSL.crypto
+    try:
+      # try to load the cert as PEM format
+      cert = lib_crypto.load_certificate(lib_crypto.FILETYPE_PEM, f_cert)
+    except lib_crypto.Error as e:
+      # if error try with another format
+      try:
+        # try to load the cert as ASN1 format
+        cert = lib_crypto.load_certificate(lib_crypto.FILETYPE_ASN1, f_cert)
+        g_sys_log.warning('Certificate "%s" is not in PEM recommanded format',
+                          path)
+      except lib_crypto.Error as e:
+        g_sys_log.error('Unable to import certificate : ' + str(e))
+        return None
+    return cert
+
+  def loadPrivateKey(self, path):
+    """Import an private key from file to python object
+
+    @param path [str] : the path to the private key file to import
+    @return [OpenSSL.crypto.PKey] the certificate object that correspond to the
+                                  certificate file
+            [None] if an error occur
+    """
+    assert path is not None
+    try:
+      # open file in text mode
+      f_cert = open(path, 'rt').read()
+    except IOError as e:
+      g_sys_log.error('Unable to open private key file : ' + str(e))
+      return None
+
+    lib_crypto = OpenSSL.crypto
+    try:
+      # try to load the key as PEM format
+      key = lib_crypto.load_privatekey(lib_crypto.FILETYPE_PEM, f_cert)
+    except lib_crypto.Error as e:
+      # if error try with another format
+      try:
+        # try to load the cert as ASN1 format
+        key = lib_crypto.load_privatekey(lib_crypto.FILETYPE_ASN1, f_cert)
+        g_sys_log.warning('Private Key "%s" is not in PEM recommanded format',
+                          path)
+      except lib_crypto.Error as e:
+        g_sys_log.error('Unable to import private key : ' + str(e))
+        return None
+    return key
+
+
