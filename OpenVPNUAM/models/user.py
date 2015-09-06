@@ -62,7 +62,7 @@ class User(object):
     self._creation_time = datetime.datetime.today()
     self._update_time = None
     # python model
-    # This is the list of current user's ostname
+    # This is the list of current user's hostname
     self.__lst_hostname = []
     # This is the reference to the main database class
     # it is used to perform self object update call
@@ -120,9 +120,10 @@ class User(object):
     """
     return self._is_enabled
 
-  def getId(self):
+  @property
+  def id(self):
     """Return the current User ID
-
+  
     @return [int] the id
     """
     if self._id is None:
@@ -134,19 +135,6 @@ class User(object):
       helper_log_fatal(g_sys_log, 'error_models.user.fatal')
 
 # Setters methods
-  def setId(self, id):
-    """Set the current user's ID
-
-    If the id is already set, do nothing
-    @param id [int] : the new id
-    """
-    assert self._id is None
-    try:
-      self._id = int(id)
-    except ValueError as e:
-      g_sys_log.error('Error with User ID format ' + str(type(self._id)))
-      helper_log_fatal(g_sys_log, 'error_models.user.fatal')
-
   def setDb(self, db):
     """Set the internal DB link to allow self update
 
@@ -158,28 +146,7 @@ class User(object):
     for h in self.__lst_hostname:
       h.setDb(db)
 
-  def addHostname(self, hostname):
-    """addHostname(): Add an hostname to the user
-
-    @param hostname [Hostname] : an hostname will be used by the user
-    """
-    assert isinstance(hostname, Hostname)
-    self.__lst_hostname.append(hostname)
-    """ --Add the entry in the Database-- """
-
-  def enable(self):
-    """enable(): Change the state of the user to enabled
-    """
-    assert self._is_enabled is False
-    self._is_enabled = True
-
-  def disable(self):
-    """disable(): Change the state of the user to disabled
-    """
-    assert self._is_enabled is True
-    self._is_enabled = False
-
-# utilities methods
+# DEBUG methods
   def __str__(self):
     """[DEBUG] Produce a description string for this user instance
 

@@ -75,7 +75,7 @@ class Certificate(object):
 
 # Getters methods
   @property
-  def getBeginTime(self):
+  def certificate_begin_time(self):
     """Return the NOT BEFORE time of this certificate
     
     @return [datetime.datetime] The time at which the certificate will become
@@ -84,7 +84,7 @@ class Certificate(object):
     return self._certificate_begin_time
 
   @property
-  def getEndTime(self):
+  def certificate_end_time(self):
     """Return the NOT AFTER time of this certificate
   
     @return [datetime.datetime] The time at which the certificate will become
@@ -92,13 +92,12 @@ class Certificate(object):
     """
     return self._certificate_end_time
 
-  @property
   def getValidityDuration(self):
     """Calculate the validity duration of a certificate
 
-    @return [datetime] : validity duration of the certificate
+    @return [datetime.datetime] : validity duration of the certificate
     """
-    return self.getEndTime - self.getBeginTime
+    return self.certificate_end_time - self.certificate_begin_time
 
 # Setters methods
   def setDb(self, db):
@@ -110,7 +109,7 @@ class Certificate(object):
     assert self.__db is None
     self.__db = db
 
-# utilities methods
+# DEBUG methods
   def __str__(self):
     """[DEBUG] Produce a description string for this certificate instance
 
