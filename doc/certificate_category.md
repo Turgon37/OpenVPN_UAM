@@ -1,3 +1,5 @@
+This array list the current category used by this program to sort all available certificates
+
 | < | Begin Time | < | < | End time | < |  Description  |
 |---|------------|---|---|----------|---|---------------|
 | x |            |   |   |          |   | Not yet valid |
