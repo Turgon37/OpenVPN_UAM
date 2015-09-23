@@ -37,12 +37,30 @@ where no longer to able to get us new data.
 # System imports
 import logging
 import time
+from queue import Queue
 
 # Project imports
 from .adapter import Adapter
 
 # Global project declarations
 g_sys_log = logging.getLogger('openvpn-uam.database')
+
+
+class DbUpdate(object):
+  """This class represent a unique field update"""
+
+  def __init__(self, field, value, obj):
+    """This build a update request
+
+    @param field [str] the name of the attribute to update
+    @param value [mixed base type] the new value for the field above
+    @param obj [object] the model instance to use as reference
+      The update will be perform on this object, in local memory as first
+      part, and then in remote database.
+    """
+    self.field = field
+    self.new_value = value
+    self.reference = obj
 
 
 class Database(object):
@@ -80,6 +98,12 @@ class Database(object):
     # this value will not be use in this class but must be read from another
     # overclass
     self.__db_wait_time = 30
+    # This queue store the list of update to perform in real database
+    # Each item in this, must be send to the adapter for being incldue in
+    # database backend. Note that while there is at least one item in this list
+    # No database pull will be perform to prevent local database from update
+    # lost
+    self.__queue_update = Queue()
 
   def load(self):
     """Load parameter from config
@@ -243,7 +267,8 @@ class Database(object):
   def db_wait_time(self):
     """Return the time between two poll to database
 
-    @return [int] The number of second from the next database polling
+    @return [int] The number of second between the two consecutive
+         attempt of database opening
     """
     return self.__db_wait_time
 
@@ -261,19 +286,30 @@ class Database(object):
       if l_u is not None:
         self.__db_poll_ref = time.time()
         # set the reference to self into all user entities
-        for user in l_u:
-          user.setDb(self)
         self.__l_user = l_u
+      else:
+        g_sys_log.error("Unable to fetch data from adapter. Use local data")
 
     return self.__l_user
 
   def getEnabledUserList(self):
     """Return only the enabled user list
 
-    @return [list<User>] the current list of user
+    @return [list<User>] the current list of enabled user(s)
     """
     enabled_user = []
     for user in self.getUserList():
       if user.is_enabled:
         enabled_user.append(user)
     return enabled_user
+
+  def getDisabledUserList(self):
+    """Return only the disabled user list
+
+    @return [list<User>] the current list of disabled user(s)
+    """
+    disabled_user = []
+    for user in self.getUserList():
+      if not user.is_enabled:
+        disabled_user.append(user)
+    return disabled_user
