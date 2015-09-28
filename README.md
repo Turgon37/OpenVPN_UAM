@@ -14,6 +14,6 @@ This concerns all credential generation feature, like automatic key re build on 
 ### Requires:
   * python3 >= 3.2
   * python3-dev >= 3.2
-  * pyMySQL : [WebSite](https://github.com/PyMySQL/PyMySQL)
+  * pyMySQL : [WebSite](https://github.com/PyMySQL/mysqlclient-python)
   * libmysqlclient-dev (system package)
   * pyOpenSSL : [WebSite](https://pypi.python.org/pypi/pyOpenSSL)
