@@ -28,7 +28,7 @@
 from .Template import Table
 
 
-class MysqlTableUserCertificate(Table):
+class TableUserCertificate(Table):
   table = 'user_certificate'
   primary = 'id_certificate'
   foreign = 'fk_hostname_id'

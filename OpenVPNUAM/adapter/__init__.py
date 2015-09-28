@@ -35,8 +35,12 @@ class Adapter(object):
   """This is an abstract class that describe a basic database adapter"""
 
   # constant for adapter connection types
-  LOCAL = 0
-  REMOTE = 1
+  TYPE_LOCAL = 0
+  TYPE_REMOTE = 1
+
+  # mysql connection status
+  STATUS_CLOSE = 0
+  STATUS_OPEN = 1
 
   def __init__(self, name, type):
     """You must call it in your adapter __init__
@@ -62,13 +66,13 @@ class Adapter(object):
   def type(self):
     """Return the type of this adapter
 
-    @return [integer] the Adapter constants that desribe the type
+    @return [integer] the Adapter constants that describe the type
     """
     return self.__type
-    
+
   def load(self, config):
     """This function must be overloaded
-    
+
     Make here all your database adapter configuration checking, error here are
     only relative to adapter configuration mistake
     @param config [dict] a key-value dict that contains all keyword in
@@ -76,7 +80,7 @@ class Adapter(object):
     @return [boolean] True if the open success, False otherwise
     """
     raise NotImplementedError()
-    
+
   def open(self):
     """This function must be overloaded
 

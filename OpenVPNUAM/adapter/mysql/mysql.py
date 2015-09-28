@@ -68,23 +68,19 @@ class Connector(Adapter):
   """
   CONNECTION_ERROR_CODE = [MySQLdb.constants.CR.CONNECTION_ERROR]
 
-  # mysql connection status
-  CLOSE = 0
-  OPEN = 1
-
   def __init__(self):
     """Build a new non-initialised mysql adapter"""
-    Adapter.__init__(self, 'mysql', Adapter.REMOTE)
+    Adapter.__init__(self, 'mysql', Adapter.TYPE_REMOTE)
+    # store local instance of connection
     self.__connection = None
-    self.__config = None
     # number of second between two consecutive server connection attempt
-    self.__server_poll_time = 30
+    self.__connection_wait_time = 30
     # number of second from epoch to the last server connection attempt
-    self.__server_poll_ref = 0.0
-    # store the current connection state
-    self.__status = self.CLOSE
+    self.__connection_wait_ref = 0.0
     # default parameter to use during database opening
     self.__param = dict(charset='utf8mb4')
+    
+    self._t = False
 
   def load(self, config):
     """Load the MySQL settings and check it
@@ -92,29 +88,28 @@ class Connector(Adapter):
     @return [bool] a boolean indicates success status
     """
     # if there is no current config available try to use the given
-    assert self.__config is None
-    assert config is not None
+    assert 'db' not in self.__param
 
-    self.__config = config
-
-    if 'db' not in config:
+    if 'db' in config:
+      self.__param['db'] = config['db']
+    else:
       g_sys_log.error('Require \'db\' option in configuration file')
       return False
 
-    if 'server_poll_time' in config:
+    if 'connection_wait_time' in config:
       try:
-        self.__server_poll_time = float(config['server_poll_time'])
-      except ValueError as e:
-        g_sys_log.error('Invalid format for "server_poll_time" option')
+        self.__connection_wait_time = float(config['connection_wait_time'])
+      except ValueError:
+        g_sys_log.error('Invalid format for "connection_wait_time" option')
         return False
 
     # default parameters
-    if 'user' not in config:
-      config['user'] = 'root'
-    self.__param['user'] = config['user']
+    if 'user' in config:
+      self.__param['user'] = config['user']
+    else:
+      self.__param['user'] = 'root'
     if 'passwd' in config and len(config['passwd']) > 0:
       self.__param['passwd'] = config['passwd']
-    self.__param['db'] = config['db']
 
     # access to server
     if 'unix_socket' in config:
@@ -124,8 +119,8 @@ class Connector(Adapter):
       # Connect to the database with TCP
       self.__param['host'] = config['host']
     else:
-      g_sys_log.warning('Mysql will used default address/socket to' +
-                        'connect to the server')
+      g_sys_log.warning('MySQL will used default address/socket to' +
+                        ' connect to the server')
     return True
 
   def open(self):
@@ -133,40 +128,28 @@ class Connector(Adapter):
 
     Parse given configuration and try to open the database socket
     @param config [dict] : a list of key-value configuration
-    @return [boolean] inform about operation successfull True if success
+    @return [bool] inform about operation successfull True if success
               False otherwise
     """
     # open the database and handle all error type because it the first
     # opening of the DB
-    try:
-      return self.__open()
-    except MySQLdb.MySQLError as e:
-      g_sys_log.error('Error during connection to mysql database ' + str(e))
-      return False
-
-  def __open(self):
-    """Open the database socket
-
-    This function use the previously defined config dict to open
-    the network socket with the database server
-    @return [boolean] True if success False if not
-    @throw MySQLdb.MySQLError
-    """
-    if self.__config is None:
-      return False
-    if self.__status == self.OPEN:
-      return True
-
-    # if the last time we have tried to reach the server is
-    # over the defined value RETRY
-    if time.time() - self.__server_poll_ref >= self.__server_poll_time:
+    assert self.__connection is None
+    # if the last time we have tried to reach the server is over the defined
+    # value RETRY
+    if time.time() - self.__connection_wait_ref >= self.__connection_wait_time:
       g_sys_log.debug('Try to connect to MySQL server')
       # update the reference time by now
-      self.__server_poll_ref = time.time()
-      self.__connection = MySQLdb.connect(**self.__param)
-      self.__status = self.OPEN
-      return True
-    # if not ABORT
+      try:
+        self.__connection = MySQLdb.connect(**self.__param)
+        return True
+      except MySQLdb.MySQLError as e:
+        # initialise the timer to prevent to attack server with new
+        # authentication
+        self.__connection_wait_ref = time.time()
+        self.__connection = None
+        g_sys_log.error('Error during connection to mysql database ' + str(e))
+        return False
+    # if not ABORT directly
     else:
       return False
 
@@ -175,13 +158,16 @@ class Connector(Adapter):
 
     @return [bool] True if disconnection success, False otherwise
     """
+    assert self.__connection is not None
     try:
-      self.__connection.close()
-      self.__status = self.CLOSE
+      if self.__connection.open:
+        self.__connection.close()
+      self.__connection = None
       return True
     except MySQLdb.MySQLError as e:
-      g_sys_log.error('Error during close of connection to MySQL database ' +
+      g_sys_log.error('Error during close of connection to MySQL database %s',
                       str(e))
+      self.__connection = None
       return False
 
   def __queryHelper(self, cursor, query, args=None):
@@ -203,40 +189,64 @@ class Connector(Adapter):
         cursor.execute(query, args)
     # DEVELOPPER error
     except MySQLdb.ProgrammingError as e:
-      helper_log_fatal(g_sys_log, 'error_database.mysql.fatal')
+      helper_log_fatal(g_sys_log, '#error_database.mysql.fatal')
       return None
     # SYSTEM error
     except MySQLdb.OperationalError as e:
-      # case where the client lost connection with server
+      # if server or network link has fail
       if e.args[0] == MySQLdb.constants.CR.SERVER_GONE_ERROR:
-        # it's the first time the connection is closed
-        if self.__status == self.OPEN:
-          g_sys_log.error('Connection with MySQL server fail')
-        self.__status = self.CLOSE
-        # TRY to re-open
         try:
-          # if success
-          if self.__open():
-            g_sys_log.info('Connection with MySQL server restarted after ' +
-                           'being cut off')
-
-          return None
-        # error in network unable to re-open connection
-        except MySQLdb.OperationalError as e:
-          if e.args[0] in self.CONNECTION_ERROR_CODE:
-            return None
+          # try to relaunch the connection
+          self.__connection.ping(True)
         except MySQLdb.MySQLError as e:
-          g_sys_log.error('Error during connection to mysql database ' +
-                          str(e))
-          return None
-      # unhandled error
-      helper_log_fatal(g_sys_log, 'error_database.mysql.fatal')
+          # if error close defintively the connection
+          self.close()
+      else:
+        g_sys_log.error('Error with server %s',
+                        str(e))
       return None
     except Exception as e:
-      g_sys_log.error('Error during execution of this query ' + str(e))
+      g_sys_log.error('Error during execution of this query %s', str(e))
       return None
     return cursor
 
+  def require_connection(func):
+    """Decorator for function that need running connection
+    
+    Apply this decorator to all functions that needs connection
+    """
+    def check_connection_status(self, *args, **kwargs):
+      """
+      """
+      # required basis connection instance
+      if self.__connection is None:
+        # connection simply not opened, try to open it
+        if self.open():
+          # success => execute query
+          return func(self, *args, **kwargs)
+        else:
+          # failure
+          g_sys_log.debug('Unable to open connection')
+          return None
+      # required connection is opened
+      elif not self.__connection.open:
+        g_sys_log.error('Connection with MySQL server fail')
+        self.close()
+        if self.open():
+          # success => execute query
+          g_sys_log.info('Connection with MySQL server restarted after being' +
+                         ' cut off')
+          return func(self, *args, **kwargs)
+        else:
+          # failure
+          g_sys_log.debug('Unable to re-open connection')
+          return None
+      # connection not null and supposed to be connected
+      else:
+        return func(self, *args, **kwargs)
+    return check_connection_status
+
+  @require_connection
   def __queryDict(self, query, args=None, col_opts=None):
     """Execute a query with a DictCursor
 
@@ -244,23 +254,25 @@ class Connector(Adapter):
     @param args [tuple] : a tuple of replacement value for query
     @param col_opts [dict] : the column option for post-treatment
     """
+    assert self.__connection is not None
     cur = self.__connection.cursor(MySQLdb.cursors.DictCursor)
-    res = self.__queryHelper(cur, query, args)
-    if col_opts is not None and res is not None:
+    sttm = self.__queryHelper(cur, query, args)
+    # make a treatment
+    if col_opts is not None and sttm is not None:
       # LOOP over each row of result
-      for r in res:
+      for row in sttm:
         # loop over each col in a row
-        for col in r:
+        for col in row:
           # if column is configured in opts
           if col in col_opts:
             # TYPE is given for this data column
             if 'type' in col_opts[col]:
               # APPLY the configured type
               if col_opts[col]['type'] == bool:
-                r[col] = bool(r[col])
+                row[col] = bool(row[col])
               if col_opts[col]['type'] == int:
-                r[col] = int(r[col])
-    return res
+                row[col] = int(row[col])
+    return sttm
 
   def getUserList(self):
     """Query the database to retrieve the list of user with theirs hostnames
@@ -272,9 +284,9 @@ class Connector(Adapter):
             [None] if the database query fail
     """
     l_user = []
-    cur = self.__queryDict('SELECT ' + MysqlTableUser.getSelectColumns() +
-                           'FROM ' + MysqlTableUser.getName(),
-                           col_opts=MysqlTableUser.getColumnOptions())
+    cur = self.__queryDict('SELECT ' + TableUser.getSelectColumns() +
+                           'FROM ' + TableUser.getName(),
+                           col_opts=TableUser.getColumnOptions())
     # if the result is None immediatly return None for the entire query
     if cur is None:
       return None
@@ -307,11 +319,11 @@ class Connector(Adapter):
             [None] if the database query fail
     """
     l_host = []
-    cur = self.__queryDict('SELECT ' + MysqlTableHostname.getSelectColumns() +
-                           ' FROM ' + MysqlTableHostname.getName() +
-                           ' WHERE ' + MysqlTableHostname.getForeign() + '= %s',
+    cur = self.__queryDict('SELECT ' + TableHostname.getSelectColumns() +
+                           ' FROM ' + TableHostname.getName() +
+                           ' WHERE ' + TableHostname.getForeign() + '= %s',
                            (id,),
-                           MysqlTableHostname.getColumnOptions())
+                           TableHostname.getColumnOptions())
     if cur is None:
       return None
     else:
@@ -345,12 +357,12 @@ class Connector(Adapter):
     """
     l_cert = []
     cur = self.__queryDict(
-        'SELECT ' + MysqlTableUserCertificate.getSelectColumns() +
-        ' FROM ' + MysqlTableUserCertificate.getName() +
-        ' WHERE ' + MysqlTableUserCertificate.getForeign() + '= %s' +
+        'SELECT ' + TableUserCertificate.getSelectColumns() +
+        ' FROM ' + TableUserCertificate.getName() +
+        ' WHERE ' + TableUserCertificate.getForeign() + '= %s' +
         ' AND %s < `certificate_end_time`',
         (id, datetime.datetime.today()),
-        MysqlTableUserCertificate.getColumnOptions())
+        TableUserCertificate.getColumnOptions())
     if cur is None:
       return None
     else:

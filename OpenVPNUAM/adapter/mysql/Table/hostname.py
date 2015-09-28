@@ -26,7 +26,7 @@
 from .Template import Table
 
 
-class MysqlTableHostname(Table):
+class TableHostname(Table):
   table = 'hostname'
   primary = 'id_hostname'
   foreign = 'fk_user_id'

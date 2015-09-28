@@ -28,7 +28,7 @@
 from .Template import Table
 
 
-class MysqlTableUser(Table):
+class TableUser(Table):
   table = 'user'
   primary = 'id_user'
   column_options = {'id_user': {'type': int, 'rename': 'id'},
