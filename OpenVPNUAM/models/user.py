@@ -103,7 +103,7 @@ class User(object):
     """
     assert(hasattr(self, "_" + field))
     setattr(self, "_" + field, value)
-    self.__db.update(field, value, self)
+    self.db.update(field, value, self)
 
 # Getters methods
   def getHostnameList(self):
