@@ -77,7 +77,7 @@ class Certificate(object):
   @property
   def certificate_begin_time(self):
     """Return the NOT BEFORE time of this certificate
-    
+
     @return [datetime.datetime] The time at which the certificate will become
     valid
     """
@@ -86,7 +86,7 @@ class Certificate(object):
   @property
   def certificate_end_time(self):
     """Return the NOT AFTER time of this certificate
-  
+
     @return [datetime.datetime] The time at which the certificate will become
     expired
     """
@@ -99,11 +99,21 @@ class Certificate(object):
     """
     return self.certificate_end_time - self.certificate_begin_time
 
+  @property
+  def db(self):
+    """Return the db instance associated with this user
+
+    @return [Database] the database reference
+    """
+    assert self.__db is not None
+    return self.__db
+
 # Setters methods
-  def setDb(self, db):
+  @db.setter
+  def db(self, db):
     """Set the internal DB link to allow self update
 
-    Add reference to main database into this hostname
+    Add reference to main database into this user and all his hostname
     @param db [Database] : the database instance to use for self update call
     """
     assert self.__db is None

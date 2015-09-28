@@ -165,23 +165,33 @@ class Hostname(object):
     """
     return self._name
 
+  @property
+  def db(self):
+    """Return the db instance associated with this user
+
+    @return [Database] the database reference
+    """
+    assert self.__db is not None
+    return self.__db
+
 # Setters methods
-  def setDb(self, db):
+  @db.setter
+  def db(self, db):
     """Set the internal DB link to allow self update
 
-    Add reference to main database into this hostname
+    Add reference to main database into this user and all his hostname
     @param db [Database] : the database instance to use for self update call
     """
     assert self.__db is None
     self.__db = db
     for h in self.__lst_certificate_soon_valid:
-      h.setDb(db)
+      h.db = db
     for h in self.__lst_certificate_valid:
-      h.setDb(db)
+      h.db = db
     for h in self.__lst_certificate_soon_expired:
-      h.setDb(db)
+      h.db = db
     for h in self.__lst_certificate_expired:
-      h.setDb(db)
+      h.db = db
 
 # API methods
   def updateCertificateList(self):

@@ -131,9 +131,9 @@ class Connector(Adapter):
     @return [bool] inform about operation successfull True if success
               False otherwise
     """
-    # open the database and handle all error type because it the first
-    # opening of the DB
-    assert self.__connection is None
+    if self.__connection is not None and self.__connection.open:
+      return True
+
     # if the last time we have tried to reach the server is over the defined
     # value RETRY
     if time.time() - self.__connection_wait_ref >= self.__connection_wait_time:
@@ -158,8 +158,11 @@ class Connector(Adapter):
 
     @return [bool] True if disconnection success, False otherwise
     """
-    assert self.__connection is not None
+    if self.__connection is None:
+      return False
+
     try:
+      # close if the connection is currently open
       if self.__connection.open:
         self.__connection.close()
       self.__connection = None

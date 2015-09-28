@@ -71,15 +71,14 @@ class User(object):
     # change into database engine
     self.__db = None
 
+# INIT API
   def load(self, attributs, hostnames=[]):
     """Load an user entity with the given list of attributes and hostnames
 
     @param attributs [dict] : a key-value dict which contains attributs
     to set to this User object
-
     """
     assert isinstance(attributs, dict)
-    assert isinstance(hostnames, list)
     # already set
     assert self._id is None
     # loop for each given attributes
@@ -92,6 +91,19 @@ class User(object):
     # load hostnames
     assert isinstance(hostnames, list)
     self.__lst_hostname = hostnames
+
+# UPDATE
+  def __update(self, field, value):
+    """Perform an update of field with the new value in 'value'
+
+    This update will be propagate to the database handler for being
+
+    @param field [str] the name of the attribut to update
+    @param field [str] value
+    """
+    assert(hasattr(self, "_" + field))
+    setattr(self, "_" + field, value)
+    self.__db.update(field, value, self)
 
 # Getters methods
   def getHostnameList(self):
@@ -113,6 +125,14 @@ class User(object):
     return l_host
 
   @property
+  def id(self):
+    """Return the primary key of this user
+
+    @return [int] the id
+    """
+    return self._id
+
+  @property
   def is_enabled(self):
     """Return get the activation state of this hostname
 
@@ -121,21 +141,41 @@ class User(object):
     return self._is_enabled
 
   @property
-  def id(self):
-    """Return the current User ID
-  
-    @return [int] the id
+  def cuid(self):
+    """Return the Current unique User ID string
+
+    @return [str] the cuid
     """
-    if self._id is None:
-      return None
-    try:
-      return int(self._id)
-    except ValueError as e:
-      g_sys_log.error('Error with User ID format ' + str(type(self._id)))
-      helper_log_fatal(g_sys_log, 'error_models.user.fatal')
+    return self._cuid
+
+  @property
+  def start_time(self):
+    """Return get the activation state of this hostname
+
+    @return [bool] : the activation state of the hostname
+    """
+    return self._start_time
+
+  @property
+  def stop_time(self):
+    """Return get the activation state of this hostname
+
+    @return [bool] : the activation state of the hostname
+    """
+    return self._stop_time
+
+  @property
+  def db(self):
+    """Return the db instance associated with this user
+
+    @return [Database] the database reference
+    """
+    assert self.__db is not None
+    return self.__db
 
 # Setters methods
-  def setDb(self, db):
+  @db.setter
+  def db(self, db):
     """Set the internal DB link to allow self update
 
     Add reference to main database into this user and all his hostname
@@ -144,7 +184,40 @@ class User(object):
     assert self.__db is None
     self.__db = db
     for h in self.__lst_hostname:
-      h.setDb(db)
+      h.db = db
+
+# API methods
+  def enable(self):
+    """Disable the current user
+
+    Call the update routine to perform the change in database
+    """
+    if self._is_enabled:
+      g_sys_log.warning('User (%d) "%s" already enabled',
+                        self.id,
+                        self.cuid)
+      # TODO data consistency
+    else:
+      g_sys_log.info('Enable user (%d) "%s"',
+                     self.id,
+                     self.cuid)
+      self.__update('is_enabled', True)
+
+  def disable(self):
+    """Enable the current user
+
+    Call the update routine to perform the change in database
+    """
+    if not self._is_enabled:
+      # TODO data consistency
+      g_sys_log.warning('User (%d) "%s" already disabled',
+                        self.id,
+                        self.cuid)
+    else:
+      g_sys_log.info('Disable user (%d) "%s"',
+                     self.id,
+                     self.cuid)
+      self.__update('is_enabled', False)
 
 # DEBUG methods
   def __str__(self):
@@ -152,15 +225,15 @@ class User(object):
 
     @return [str] a formatted string that describe this user
     """
-    content = ("USER (" + str(self._id) + ")" +
-               "\n  CUID = " + str(self._cuid) +
+    content = ("USER (" + str(self.id) + ")" +
+               "\n  CUID = " + str(self.cuid) +
                "\n  UMAIL = " + str(self._user_mail) +
                "\n  CERTMAIL = " + str(self._certificate_mail) +
                "\n  PASSMAIL = " + str(self._password_mail) +
-               "\n  STATUS = " + str(self._is_enabled) +
+               "\n  STATUS = " + str(self.is_enabled) +
                "\n  CERT PASSWD = " + str(self._certificate_password) +
-               "\n  START DATE = " + str(self._start_time) +
-               "\n  END DATE = " + str(self._stop_time) +
+               "\n  START DATE = " + str(self.start_time) +
+               "\n  END DATE = " + str(self.stop_time) +
                "\n  CREATED ON = " + str(self._creation_time) +
                "\n  UPDATED ON = " + str(self._update_time))
     for h in self.__lst_hostname:
@@ -172,15 +245,15 @@ class User(object):
 
     @return [str] a formatted string that describe this user
     """
-    return ("[id(" + str(self._id) + ")," +
-            " cuid(" + str(self._cuid) + ")," +
+    return ("[id(" + str(self.id) + ")," +
+            " cuid(" + str(self.cuid) + ")," +
             " umail(" + str(self._user_mail) + ")," +
             " certmail(" + str(self._certificate_mail) + ")," +
             " passmail(" + str(self._password_mail) + ")," +
-            " enable(" + str(self._is_enabled) + ")," +
+            " enable(" + str(self.is_enabled) + ")," +
             " certpasswd(" + str(self._certificate_password) + ")," +
-            " startdate(" + str(self._start_time) + ")," +
-            " enddate(" + str(self._stop_time) + ")," +
+            " startdate(" + str(self.start_time) + ")," +
+            " enddate(" + str(self.stop_time) + ")," +
             " createdon(" + str(self._creation_time) + ")," +
             " updatedon(" + str(self._update_time) + ")," +
             " hostname(" + str(len(self.__lst_hostname)) + ")]")
