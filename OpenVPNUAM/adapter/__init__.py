@@ -79,7 +79,7 @@ class Adapter(object):
     corresponding section of the config file
     @return [boolean] True if the open success, False otherwise
     """
-    raise NotImplementedError()
+    raise NotImplementedError("load")
 
   def open(self):
     """This function must be overloaded
@@ -89,7 +89,7 @@ class Adapter(object):
     appear here are only relatives to database opening
     @return [boolean] True if the open success, False otherwise
     """
-    raise NotImplementedError()
+    raise NotImplementedError("open")
 
   def close(self):
     """This function must be overloaded
@@ -97,4 +97,24 @@ class Adapter(object):
     This function must close/unload the database. Make here all operation
     that properly close the database
     """
-    raise NotImplementedError()
+    raise NotImplementedError("close")
+
+  def getUserList(self):
+    """Return the list of user from original storage
+
+    Return the list of current user and their hostnames.
+    @return [list] the list of User
+            [None] if the database query fail
+    """
+    raise NotImplementedError("getUserList")
+
+  def processUpdate(self, request):
+    """Return the list of user from original storage
+
+    @param request [Database.DbUpdate] the instance of update which contains
+      all parameters field
+    @return [bool] : the result of the operation
+          True if update success
+          False if not
+    """
+    raise NotImplementedError("processUpdate")
