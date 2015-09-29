@@ -109,7 +109,7 @@ class Adapter(object):
     raise NotImplementedError("getUserList")
 
   def processUpdate(self, request):
-    """Return the list of user from original storage
+    """Treat an update request
 
     @param request [Database.DbUpdate] the instance of update which contains
       all parameters field
