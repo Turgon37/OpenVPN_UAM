@@ -37,30 +37,13 @@ where no longer to able to get us new data.
 # System imports
 import logging
 import time
-from queue import Queue
+import queue
 
 # Project imports
 from .adapter import Adapter
 
 # Global project declarations
 g_sys_log = logging.getLogger('openvpn-uam.database')
-
-
-class DbUpdate(object):
-  """This class represent a unique field update"""
-
-  def __init__(self, field, value, obj):
-    """This build a update request
-
-    @param field [str] the name of the attribute to update
-    @param value [mixed base type] the new value for the field above
-    @param obj [object] the model instance to use as reference
-      The update will be perform on this object, in local memory as first
-      part, and then in remote database.
-    """
-    self.field = field
-    self.new_value = value
-    self.reference = obj
 
 
 class Database(object):
@@ -71,6 +54,69 @@ class Database(object):
   UNLOAD = -1
   CLOSE = 0
   OPEN = 1
+
+# # INSTANCE OF UPDATE REQUEST
+  class DbUpdate(object):
+    """This class represent a unique field update
+
+    An update query to database is first represented by an instance of this
+    class
+    """
+
+    def __init__(self, field, value, obj):
+      """This build a update request
+
+      @param field [str] the name of the attribute to update
+      @param value [mixed base type] the new value for the field above
+      @param obj [object] the model instance to use as reference
+      """
+      self.__field = field
+      self.__value = value
+      self.__reference = obj
+
+# Getters
+    @property
+    def field(self):
+      """Get the name of the field to update in target
+
+      @return [str] : the name of the field to update
+      """
+      return self.__field
+
+    @property
+    def value(self):
+      """Get the new value for the field 'field' in target
+
+      @return [object] the new value for the field
+      """
+      return self.__value
+
+    @property
+    def target(self):
+      """Get the reference to the object instance designed by the update
+
+      @return [object] the target object
+      """
+      return self.__reference
+
+    @property
+    def target_type(self):
+      """Get the name of class for object in reference with this update
+
+      @return [str] : the name of the class
+      """
+      return type(self.target).__name__
+
+    def __str__(self):
+      """Return a basic definition of this update query as string
+
+      @return [str] a string that describe the update request
+      """
+      return (self.target_type +
+              "(" + str(self.target.id) + ")" +
+              "['" + self.field + "'] = " + str(self.value))
+
+# # //INSTANCE OF UPDATE REQUEST
 
   def __init__(self, confparser):
     """Constructor: Build a new database object
@@ -99,11 +145,12 @@ class Database(object):
     # overclass
     self.__db_wait_time = 30
     # This queue store the list of update to perform in real database
-    # Each item in this, must be send to the adapter for being incldue in
-    # database backend. Note that while there is at least one item in this list
-    # No database pull will be perform to prevent local database from update
-    # lost
-    self.__queue_update = Queue()
+    # Each item in this, must be send to the adapter for being executed in
+    # database backend. Note that, while there is at least one item in this
+    # list no database pull will be perform to prevent local database from
+    # update lost
+    self.__queue_update = queue.Queue()
+    self.__queue_error = queue.Queue()
 
   def load(self):
     """Load parameter from config
@@ -272,6 +319,32 @@ class Database(object):
     """
     return self.__db_wait_time
 
+  def __getUserList(self):
+    """Call the adapter to retrieve user list from its associated storage
+
+    @return [list<User>] :
+    """
+    l = self.__adapter.getUserList()
+    if l is not None:
+      for row in l:
+        row.db = self
+    return l
+
+  def __processUpdate(self):
+    """Treat all update request which are pending into the queue
+    """
+    while not self.__queue_update.empty():
+      try:
+        up = self.__queue_update.get_nowait()
+        # if update failed into adapter
+        if not self.__adapter.processUpdate(up):
+          g_sys_log.error("Error during update query : " + str(up))
+          # push the update query into error queue
+          self.__queue_error.put(up)
+      except queue.Empty:
+        return
+
+# API DATABASE
   def getUserList(self):
     """Call the adapter to return the current user list
 
@@ -279,9 +352,12 @@ class Database(object):
     """
     assert self.__status == self.OPEN
     # refresh the internal cached list by ask again the adapter
-    if time.time() - self.__db_poll_ref >= self.__db_poll_time:
+    # check if the last poll have been realized from sufficient amount
+    # of time
+    if ((time.time() - self.__db_poll_ref >= self.__db_poll_time) and
+       self.__queue_update.empty()):
       g_sys_log.debug("=> Pull data from the adapter")
-      l_u = self.__adapter.getUserList()
+      l_u = self.__getUserList()
       # error in data retrieving from DB
       if l_u is not None:
         self.__db_poll_ref = time.time()
@@ -289,7 +365,6 @@ class Database(object):
         self.__l_user = l_u
       else:
         g_sys_log.error("Unable to fetch data from adapter. Use local data")
-
     return self.__l_user
 
   def getEnabledUserList(self):
@@ -313,3 +388,18 @@ class Database(object):
       if not user.is_enabled:
         disabled_user.append(user)
     return disabled_user
+
+  def update(self, field, value, obj):
+    """Queue a new update request
+
+    Attempt to update a field identified by 'field' string with the value
+    in 'value' parameter. This update will be applyed to object passed as
+    parameter. This function call the adapter to perform an update
+    of the key identified by 'field' argument for the current user with the
+    new value given in 'value' argument.
+    @param field [str] : the name of the current user's attribute to update
+    @param value [MIX] : the new value for the 'field' named attribute
+    @param obj [MIX] : the object to pass to adapter for running the update
+    """
+    self.__queue_update.put(Database.DbUpdate(field, value, obj))
+    self.__processUpdate()
