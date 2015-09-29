@@ -177,12 +177,6 @@ class Database(object):
     if self.__adapter is None:
       return False
 
-    # adapter config checking
-    if not self.__cp.has_section(self.__adapter.name):
-      g_sys_log.error('Configuration file require a section with name "' +
-                      self.__adapter.name + '"')
-      return False
-
     self.__status = self.CLOSE
     return True
 
@@ -196,7 +190,7 @@ class Database(object):
     name = self.__cp.getItems(self.__cp.DATABASE_SECTION)['adapter']
     adapter = None
 
-    g_sys_log.debug('Loading database adapter for "' + name + '"')
+    g_sys_log.debug('Loading database adapter with name "' + name + '"')
     try:
       mod = __import__('OpenVPNUAM.adapter.' + name, fromlist=['Connector'])
       adapter = mod.Connector()
@@ -213,7 +207,7 @@ class Database(object):
     # adapter class checking
     if not isinstance(adapter, Adapter):
       g_sys_log.error('Adapter "%s" must extend Adapter class',
-                      adapter.name)
+                      name)
       return None
 
     # adapter class name checking
@@ -245,7 +239,10 @@ class Database(object):
     @return [bool] : a boolean indicates if the operation have succeded or
     not
     """
+    assert self.__status == self.CLOSE
+
     if self.__openAdapter():
+      self.__status = self.OPEN
       g_sys_log.debug('Opened database type "%s"', self.__adapter.name)
       return True
     else:
@@ -260,25 +257,23 @@ class Database(object):
     @return [bool] : a boolean indicates if the operation have succeded or
     not
     """
-    assert self.__status == self.CLOSE
     assert self.__adapter is not None
 
     try:
       # open database
       if self.__adapter.open():
-        self.__status = self.OPEN
         return True
       else:
         return False
     except KeyError as e:
-      g_sys_log.error('Adapter "%s" require %s missing parameters.' +
-                      'See adapter documentation' +
-                      self.__adapter.name +
+      g_sys_log.error('Adapter "%s" require %s missing parameters. ' +
+                      'See adapter documentation',
+                      self.__adapter.name,
                       str(e))
       return False
     except Exception as e:
-      g_sys_log.error('Adapter "%s" has encounter an error: %s' +
-                      self.__adapter.name +
+      g_sys_log.error('Adapter "%s" has encounter an error: %s',
+                      self.__adapter.name,
                       str(e))
       return False
 
