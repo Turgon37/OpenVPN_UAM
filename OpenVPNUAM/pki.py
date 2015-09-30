@@ -66,7 +66,7 @@ class PublicKeyInfrastructure(object):
     # This directory will contains newly created certificates
     self.__new_cert_directory = "certificates/"
 
-  def loadRequired(self):
+  def load(self):
     """Return a boolean indicates if PKI is ready to work or not
 
     This function check things required by PKI working and return a boolean
@@ -101,20 +101,48 @@ class PublicKeyInfrastructure(object):
       if not os.path.isdir(self.__new_cert_directory):
         g_sys_log.error('Certificate directory is invalid')
         return False
-    
+
     try:
-      self.__certificate_authority = self.loadCertificate(self.__cp.get(
-          self.__cp.PKI_SECTION,
-          'ca'))
-      self.__certificate_authority_key = self.loadPrivateKey(self.__cp.get(
-          self.__cp.PKI_SECTION,
-          'ca_key'))
+      self.__certificate_authority = self.loadCertificate(
+          self.__cp.get(
+              self.__cp.PKI_SECTION,
+              'ca'))
+      self.__certificate_authority_key = self.loadPrivateKey(
+          self.__cp.get(
+              self.__cp.PKI_SECTION,
+              'ca_key'))
     except Error as e:
       g_sys_log.error('Configuration error : ' + str(e))
       return False
 
     return True
 
+  def checkRequirements(self):
+    """Check starting requirement for PKI
+
+    @return [bool] : True if all requirement are valid
+                    False ifone of them are not valid
+    """
+    if self.__certificate_authority is None:
+      g_sys_log.error('CA Certificate is missing')
+      return False
+    g_sys_log.debug('Using CA Certificate "%s"',
+                    self.__certificate_authority.get_subject().CN)
+    if self.__certificate_authority.has_expired():
+      g_sys_log.error('CA Certificate has expired')
+      return False
+
+    if self.__certificate_authority_key is None:
+      g_sys_log.error('CA Key is missing')
+      return False
+    g_sys_log.debug('Using CA Private Key with size "%s" bits',
+                    self.__certificate_authority_key.bits())
+    if not self.__certificate_authority_key.check():
+      g_sys_log.error('CA Private Key is invalid')
+      return False
+    return True
+
+# TOOLS
   def loadCertificate(self, path):
     """Import an existing certificate from file to python object
 
@@ -178,5 +206,3 @@ class PublicKeyInfrastructure(object):
         g_sys_log.error('Unable to import private key : ' + str(e))
         return None
     return key
-
-
