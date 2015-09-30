@@ -36,6 +36,15 @@ class Table(object):
   COL_QUOTE = '`'
 
   @classmethod
+  def quote(cls, name):
+    """Apply MySQL standard quote to the name given
+
+    @param name [str] the name to quote
+    @return [str] the name quoted by standard quote
+    """
+    return cls.COL_QUOTE + name + cls.COL_QUOTE
+
+  @classmethod
   def getName(cls, quote=True):
     """Return the name of tis table
 
