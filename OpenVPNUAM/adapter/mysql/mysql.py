@@ -79,8 +79,6 @@ class Connector(Adapter):
     self.__connection_wait_ref = 0.0
     # default parameter to use during database opening
     self.__param = dict(charset='utf8mb4')
-    
-    self._t = False
 
   def load(self, config):
     """Load the MySQL settings and check it
@@ -204,6 +202,8 @@ class Connector(Adapter):
         except MySQLdb.MySQLError as e:
           # if error close defintively the connection
           self.close()
+        except Exception as e:
+          g_sys_log.error('Error with server connection %s', str(e))
       else:
         g_sys_log.error('Error with server %s',
                         str(e))
@@ -215,11 +215,15 @@ class Connector(Adapter):
 
   def require_connection(func):
     """Decorator for function that need running connection
-    
+
     Apply this decorator to all functions that needs connection
     """
     def check_connection_status(self, *args, **kwargs):
-      """
+      """Check connection for query
+
+      This function verify that the current connection to database is open
+      before execute request. If the connection is not available return None
+      immediatly
       """
       # required basis connection instance
       if self.__connection is None:
@@ -362,7 +366,7 @@ class Connector(Adapter):
     cur = self.__queryDict(
         'SELECT ' + TableUserCertificate.getSelectColumns() +
         ' FROM ' + TableUserCertificate.getName() +
-        ' WHERE ' + TableUserCertificate.getForeign() + '= %s' +
+        ' WHERE ' + TableUserCertificate.getForeign() + ' = %s' +
         ' AND %s < `certificate_end_time`',
         (id, datetime.datetime.today()),
         TableUserCertificate.getColumnOptions())
@@ -377,3 +381,58 @@ class Connector(Adapter):
         l_cert.append(c)
     cur.close()
     return l_cert
+
+  def processUpdate(self, up):
+    """Treat an update request
+
+    @param up [Database.DbUpdate] the instance of update which contains
+      all parameters field
+    @return [bool] : the result of the operation
+          True if update success
+          False if not
+    """
+    assert type(up).__name__ == 'DbUpdate'
+
+    model = None
+    # try to read model that belong to
+    if up.target_type == 'User':
+      model = TableUser
+    elif up.target_type == 'Hostname':
+      model = TableHostname
+    elif up.target_type == 'Certificate':
+      model = TableUserCertificate
+    else:
+      up.is_error = True
+      up.error_msg = "Not implemented update request"
+      return False
+    assert model is not None
+    # check field exist in model
+    if up.field not in model.getColumnOptions():
+      up.is_error = True
+      up.error_msg = "Unknown field in request"
+      return False
+
+    # EXECUTE QUERY
+    cur = self.__queryDict(
+        'UPDATE ' + model.getName() +
+        ' SET ' + model.quote(up.field) + " = %s"
+        ' WHERE ' + model.getPrimary() + ' = %s',
+        (up.value, up.target.id))
+    # check MySQL error
+    if cur is None:
+      up.is_error = True
+      up.error_msg = "MySQL error"
+      self.__connection.rollback()
+      return False
+    # check output number of row
+    if up.expected_change != up.NO_CHANGE_CONSTRAINT:
+      if up.expected_change != cur.rowcount:
+        up.is_error = True
+        up.error_msg = "Error bad result row number"
+        cur.close()
+        self.__connection.rollback()
+        return False
+    cur.close()
+    # Commit to validate modification
+    self.__connection.commit()
+    return True
