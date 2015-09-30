@@ -77,8 +77,8 @@ class Hostname(object):
     # This is the reference to the main database class
     # it is used to perform self object update call
     # Exemple if you want to update a attribut of an instance of this class
-    # like one of theses above, you will need to call the main database to store
-    # change into database engine
+    # like one of theses above, you will need to call the main database to
+    # store change into database engine
     self.__db = None
 
   def load(self, attributs, certs=[]):
@@ -150,6 +150,14 @@ class Hostname(object):
 
 # Getters methods
   @property
+  def id(self):
+    """Return the primary id of this hostname
+
+    @return [int] the id
+    """
+    return self._id
+
+  @property
   def is_enabled(self):
     """Return get the activation state of this hostname
 
@@ -173,6 +181,29 @@ class Hostname(object):
     """
     assert self.__db is not None
     return self.__db
+
+  def getCertificateValidList(self):
+    """Return the list of valid certificate
+
+    return [list<Certificate>]
+    """
+    return self.__lst_certificate_valid
+
+  def getCertificateSoonExpiredList(self):
+    """Return the list of soon expired certificate
+
+    return [list<Certificate>]
+    """
+    return self.__lst_certificate_soon_expired
+
+  def getCertificateValidCount(self):
+    """Compute the total amount of certificate currently valid
+
+    @return [int] the amount of currently valid certificate
+          include VALID + SOON EXPIRED
+    """
+    return (len(self.__lst_certificate_valid) +
+            len(self.__lst_certificate_soon_expired))
 
 # Setters methods
   @db.setter

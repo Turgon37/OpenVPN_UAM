@@ -103,7 +103,7 @@ class User(object):
     """
     assert(hasattr(self, "_" + field))
     setattr(self, "_" + field, value)
-    self.db.update(field, value, self)
+    self.db.update(field, value, self, 1)
 
 # Getters methods
   def getHostnameList(self):
@@ -126,9 +126,9 @@ class User(object):
 
   @property
   def id(self):
-    """Return the primary key of this user
+    """Return the primary id of this user
 
-    @return [int] the id
+    @return [int] the id of this user
     """
     return self._id
 
@@ -174,6 +174,22 @@ class User(object):
     return self.__db
 
 # Setters methods
+  @start_time.setter
+  def start_time(self, value):
+    """Set the start time for this user
+
+    @param [MIX] : the new value for the start time
+    """
+    self.__update('start_time', value)
+
+  @stop_time.setter
+  def stop_time(self, value):
+    """Set the stop time for this user
+
+    @param [MIX] : the new value for the stop time
+    """
+    self.__update('stop_time', value)
+
   @db.setter
   def db(self, db):
     """Set the internal DB link to allow self update
