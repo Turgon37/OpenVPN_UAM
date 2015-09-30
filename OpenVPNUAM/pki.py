@@ -114,29 +114,30 @@ class PublicKeyInfrastructure(object):
     except Error as e:
       g_sys_log.error('Configuration error : ' + str(e))
       return False
+    if self.__certificate_authority is None:
+      g_sys_log.error('CA Certificate is missing')
+      return False
+    else:
+      g_sys_log.info('Using CA Certificate "%s"',
+                     self.__certificate_authority.get_subject().CN)
+    if self.__certificate_authority_key is None:
+      g_sys_log.error('CA Key is missing')
+      return False
+    else:
+      g_sys_log.info('Using CA Private Key with size "%s" bits',
+                     self.__certificate_authority_key.bits())
 
     return True
 
   def checkRequirements(self):
-    """Check starting requirement for PKI
+    """Check requirement for PKI to running
 
     @return [bool] : True if all requirement are valid
                     False ifone of them are not valid
     """
-    if self.__certificate_authority is None:
-      g_sys_log.error('CA Certificate is missing')
-      return False
-    g_sys_log.debug('Using CA Certificate "%s"',
-                    self.__certificate_authority.get_subject().CN)
     if self.__certificate_authority.has_expired():
       g_sys_log.error('CA Certificate has expired')
       return False
-
-    if self.__certificate_authority_key is None:
-      g_sys_log.error('CA Key is missing')
-      return False
-    g_sys_log.debug('Using CA Private Key with size "%s" bits',
-                    self.__certificate_authority_key.bits())
     if not self.__certificate_authority_key.check():
       g_sys_log.error('CA Private Key is invalid')
       return False
