@@ -62,6 +62,7 @@ class Database(object):
     An update query to database is first represented by an instance of this
     class
     """
+    NO_CHANGE_CONSTRAINT = -1
 
     def __init__(self, field, value, obj):
       """This build a update request
@@ -73,6 +74,9 @@ class Database(object):
       self.__field = field
       self.__value = value
       self.__reference = obj
+      self.__expected_change = self.NO_CHANGE_CONSTRAINT
+      self.__error = False
+      self.__error_msg = None
 
 # Getters
     @property
@@ -106,6 +110,56 @@ class Database(object):
       @return [str] : the name of the class
       """
       return type(self.target).__name__
+
+    @property
+    def expected_change(self):
+      """Get the expected number of rows
+
+      @return [int] : the number of row expected
+      """
+      return self.__expected_change
+
+    @expected_change.setter
+    def expected_change(self, num):
+      """Set the expected number of rows
+
+      @param num [int] : the number of row expected
+      """
+      self.__expected_change = num
+
+    @property
+    def is_error(self):
+      """Return the error state of this update
+
+      @return [bool] : the error status
+      """
+      return self.__error
+
+    @property
+    def error_msg(self):
+      """Return the error explanation
+
+      @return [str] : the error description if available
+      """
+      return self.__error_msg
+
+    @is_error.setter
+    def is_error(self, state):
+      """Set the error state for this update
+
+      @param state [bool] the new error state of this update
+      """
+      assert isinstance(state, bool)
+      self.__error = state
+
+    @error_msg.setter
+    def error_msg(self, msg):
+      """Set the error explanation
+
+      @param msg [str] : the error description
+      """
+      assert isinstance(msg, str)
+      self.__error_msg = msg
 
     def __str__(self):
       """Return a basic definition of this update query as string
@@ -384,7 +438,7 @@ class Database(object):
         disabled_user.append(user)
     return disabled_user
 
-  def update(self, field, value, obj):
+  def update(self, field, value, obj, count=DbUpdate.NO_CHANGE_CONSTRAINT):
     """Queue a new update request
 
     Attempt to update a field identified by 'field' string with the value
@@ -396,5 +450,7 @@ class Database(object):
     @param value [MIX] : the new value for the 'field' named attribute
     @param obj [MIX] : the object to pass to adapter for running the update
     """
-    self.__queue_update.put(Database.DbUpdate(field, value, obj))
+    update = Database.DbUpdate(field, value, obj)
+    update.expected_change = count
+    self.__queue_update.put(update)
     self.__processUpdate()
