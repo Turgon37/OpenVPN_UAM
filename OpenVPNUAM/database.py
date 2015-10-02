@@ -242,7 +242,6 @@ class Database(object):
     the name given in configuration file.
     @return [object] the new adapter instance
     """
-    name = None
     try:
       name = self.__cp.getItems(self.__cp.DATABASE_SECTION)['adapter']
     except KeyError:
