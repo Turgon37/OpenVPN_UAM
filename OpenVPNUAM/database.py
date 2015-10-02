@@ -40,7 +40,7 @@ import time
 import queue
 
 # Project imports
-from .adapter import Adapter
+from .adapters import Adapter
 
 # Global project declarations
 g_sys_log = logging.getLogger('openvpn-uam.database')
@@ -246,7 +246,7 @@ class Database(object):
 
     g_sys_log.debug('Loading database adapter with name "' + name + '"')
     try:
-      mod = __import__('OpenVPNUAM.adapter.' + name, fromlist=['Connector'])
+      mod = __import__('OpenVPNUAM.adapters.' + name, fromlist=['Connector'])
       adapter = mod.Connector()
     except ImportError as e:
       g_sys_log.error('Adapter "%s" cannot be found in adapter/ directory. %s',
