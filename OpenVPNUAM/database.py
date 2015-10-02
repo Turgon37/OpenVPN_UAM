@@ -214,7 +214,8 @@ class Database(object):
     """
     assert self.__status == self.UNLOAD
     if not self.__cp.has_section(self.__cp.DATABASE_SECTION):
-      g_sys_log.error('Missing database section in configuration file')
+      g_sys_log.error("Missing '%s' section in configuration file",
+                      self.__cp.DATABASE_SECTION)
       return False
 
     # try to load db_poll_time from configuration
@@ -241,47 +242,51 @@ class Database(object):
     the name given in configuration file.
     @return [object] the new adapter instance
     """
-    name = self.__cp.getItems(self.__cp.DATABASE_SECTION)['adapter']
+    name = None
+    try:
+      name = self.__cp.getItems(self.__cp.DATABASE_SECTION)['adapter']
+    except KeyError:
+      g_sys_log.error("Missing 'adapter' item in '%s' section of configuration",
+                      self.__cp.DATABASE_SECTION)
+      return False
     adapter = None
 
-    g_sys_log.debug('Loading database adapter with name "' + name + '"')
+    g_sys_log.debug("Loading database adapter with name '%s'", name)
     try:
       mod = __import__('OpenVPNUAM.adapters.' + name, fromlist=['Connector'])
       adapter = mod.Connector()
     except ImportError as e:
-      g_sys_log.error('Adapter "%s" cannot be found in adapter/ directory. %s',
+      g_sys_log.error("Adapter '%s' cannot be found in adapters/ directory. %s",
                       name,
                       str(e))
       return None
     except AttributeError as e:
-      g_sys_log.error('Adapter "%s" must use Connector as class name. %s',
+      g_sys_log.error("Adapter '%s' must use Connector as class name. %s",
                       name,
                       str(e))
       return None
     # adapter class checking
     if not isinstance(adapter, Adapter):
-      g_sys_log.error('Adapter "%s" must extend Adapter class',
-                      name)
+      g_sys_log.error("Adapter '%s' must extend Adapter class", name)
       return None
 
     # adapter class name checking
     if adapter.name != name:
-      g_sys_log.error('Adapter name "%s" doesn\'t match with class name %s',
+      g_sys_log.error("Adapter name '%s' doesn't match with class name %s",
                       adapter.name,
                       name)
       return None
 
     if not self.__cp.has_section(adapter.name):
-      g_sys_log.error('Adapter "%s" required a configuration section with ' +
-                      'the same name',
-                      name)
+      g_sys_log.error("Adapter '%s' required a configuration section with " +
+                      "the same name", name)
       return None
 
     try:
       if not adapter.load(self.__cp.getItems(adapter.name)):
         return None
     except KeyError as e:
-      g_sys_log.error('Adapter "%s" required a missing parameter. %s',
+      g_sys_log.error("Adapter '%s' required a missing parameter. %s",
                       name,
                       str(e))
       return None
@@ -297,11 +302,11 @@ class Database(object):
 
     if self.__openAdapter():
       self.__status = self.OPEN
-      g_sys_log.debug('Opened database type "%s"', self.__adapter.name)
+      g_sys_log.debug("Opened database type '%s'", self.__adapter.name)
       return True
     else:
       # loading error
-      g_sys_log.error('Adapter "%s" failed to open database',
+      g_sys_log.error("Adapter '%s' failed to open database",
                       self.__adapter.name)
       return False
 
@@ -320,13 +325,13 @@ class Database(object):
       else:
         return False
     except KeyError as e:
-      g_sys_log.error('Adapter "%s" require %s missing parameters. ' +
-                      'See adapter documentation',
+      g_sys_log.error("Adapter '%s' require '%s' missing parameters. " +
+                      "See adapter documentation",
                       self.__adapter.name,
                       str(e))
       return False
     except Exception as e:
-      g_sys_log.error('Adapter "%s" has encounter an error: %s',
+      g_sys_log.error("Adapter '%s' has encounter an error: %s",
                       self.__adapter.name,
                       str(e))
       return False
@@ -342,7 +347,7 @@ class Database(object):
     if self.__adapter.close():
       self.__status = self.CLOSE
     else:
-      g_sys_log.error("Error during adapter closing")
+      g_sys_log.error('Error during adapter closing')
 
 # Getters methods
   @property
