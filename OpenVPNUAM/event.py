@@ -2,7 +2,7 @@
 
 # This file is a part of OpenVPN-UAM
 #
-# Copyright (c) 2015 Thomas PAJON
+# Copyright (c) 2015 Thomas PAJON, Pierre GINDRAUD
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -29,50 +29,122 @@ It provide some function to manage this event and also to update
 its attributes.
 """
 
-# Global project declarations
-g_crit_dict = [0: 'info', 1: 'warning', 2: 'critical']
-g_urge_defaultdict = [('low', []), ('normal', ['mail']), ('critical', ['sms', 'mail'])]
+# System imports
+import logging
 
-class Event(object):
-  """Build an instance of the event program class
+# Project imports
+from .handlers import BaseHandler
+
+# Global project declarations
+g_sys_log = logging.getLogger('openvpn-uam.event')
+
+# g_crit_dict = [0: 'info', 1: 'warning', 2: 'critical']
+# g_urge_defaultdict = [('low', []), ('normal', ['mail']), ('critical', ['sms', 'mail'])]
+
+
+class EventReceiver(object):
+  """This class represent the entry point of all generated event
+
+  Each event that is generate by all other part of this program are handled
+  here. After a little treatment, all event are dispatched through some event
+  handler
   """
 
-  def __init__(self):
-    """Constructor: Build a new event
+  def __init__(self, confparser):
+    """Constructor: Build a new event Receiver with the specified config parser
     """
-    self._criticality = None
-    self._message = None
-    self._urgency = None
+    self.__cp = confparser
+    self.__l_handler = []
+    # self._criticality = None
+    # self._message = None
+    # self._urgency = None
 
-  def load(self, criticality, message, urgency):
-    """Load attributes of the event
-    
-    @param criticality [int] : the level of the criticality of the event
-       message [string] : the containing message in the event
-       urgency [string] : the urgency of the event to notify the
-          administrators
+  def load(self):
+    """Load configuration for event handler
+
+    @return [bool] : the loading status, True if load successfull
+              False, otherwise
     """
-    assert isinstance(criticality, (int, string))
-    assert isinstance(message, string)
-    assert isinstance(urgency, string)
-    
-    assert (criticality > 2 and criticality < 0)
-    assert urgency in g_urge_list
-    
-    self._criticality = criticality
-    self._message = message
-    self._urgency = urgency
-  
-  def notify(self):
-    """Select the applications to notify the administrators
-    """
-    for urg, apps_list in g_urge_defaultdict:
-      if urg == self._urgency:
-        for app in apps_list:
-          if app == 'mail':
-            str(app)
-          elif app == 'sms':
-            str(app)
-          else:
-            pass
- 
+    if not self.__cp.has_section(self.__cp.EVENT_SECTION):
+      g_sys_log.error("Missing '%s' section in configuration file",
+                      self.__cp.EVENT_SECTION)
+      return False
+
+    try:
+      hs = self.__cp.getItems(self.__cp.EVENT_SECTION)['handlers']
+    except KeyError:
+      g_sys_log.error("Missing 'handlers' item in section '%s' in" +
+                      "configuration file", self.__cp.EVENT_SECTION)
+      return False
+
+    if len(hs) == 0:
+      g_sys_log.warning("No specific event handler configured. " +
+                        "Only syslog message will be generated on events")
+    else:
+      for hs_n in hs.split(','):
+        hs_n = hs_n.strip()
+        g_sys_log.debug("Loading event handler with name '%s'", hs_n)
+        try:
+          mod = __import__('OpenVPNUAM.handlers.' + hs_n, fromlist=['Handler'])
+          hdlr = mod.Handler()
+        except ImportError as e:
+          g_sys_log.error("Handler '%s' cannot be found in handlers/ folder." +
+                          " %s", hs_n, str(e))
+          return False
+        except AttributeError as e:
+          g_sys_log.error("Handler '%s' must use Handler as class name. %s",
+                          hs_n,
+                          str(e))
+          return False
+
+        # handler class checking
+        if not isinstance(hdlr, BaseHandler):
+          g_sys_log.error("Handler '%s' must extend BaseHandler class", name)
+          return False
+
+        # handler class name checking
+        if hdlr.name != hs_n:
+          g_sys_log.error("Handler name '%s' doesn't match with class name %s",
+                          hdlr.name,
+                          hs_n)
+          return False
+
+        if not self.__cp.has_section(hdlr.name):
+          g_sys_log.error("Handler '%s' require a configuration section with " +
+                          "the same name", hdlr.name)
+          return False
+        hdlr.logger = logging.getLogger('openvpn-uam.event.' + hdlr.name)
+        hdlr.configuration = self.__cp.getItems(hdlr.name)
+        try:
+          if not hdlr.load():
+            return False
+        except KeyError as e:
+          g_sys_log.error("Handler '%s' require a missing parameter. %s",
+                          hdlr.name, str(e))
+
+        g_sys_log.debug("Handler '%s' loaded with CAP %s",
+                        hdlr.name, hdlr.capabilities)
+    return True
+    # assert isinstance(criticality, (int, string))
+    # assert isinstance(message, string)
+    # assert isinstance(urgency, string)
+    #
+    # assert (criticality > 2 and criticality < 0)
+    # assert urgency in g_urge_list
+    #
+    # self._criticality = criticality
+    # self._message = message
+    # self._urgency = urgency
+
+  # def notify(self):
+  #   """Select the applications to notify the administrators
+  #   """
+  #   for urg, apps_list in g_urge_defaultdict:
+  #     if urg == self._urgency:
+  #       for app in apps_list:
+  #         if app == 'mail':
+  #           str(app)
+  #         elif app == 'sms':
+  #           str(app)
+  #         else:
+  #           pass

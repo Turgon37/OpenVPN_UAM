@@ -57,6 +57,7 @@ class OVPNUAMConfigParser(ConfigParser):
   MAIN_SECTION = 'main'
   DATABASE_SECTION = 'database'
   PKI_SECTION = 'pki'
+  EVENT_SECTION = 'event'
 
   def __init__(self):
     """Constructor : init a new config parser
