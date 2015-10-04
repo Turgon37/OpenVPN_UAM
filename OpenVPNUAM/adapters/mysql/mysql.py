@@ -420,9 +420,8 @@ class Connector(Adapter):
         (up.value, up.target.id))
     # check MySQL error
     if cur is None:
-      up.is_error = True
-      up.error_msg = "MySQL error"
-      self.__connection.rollback()
+      if self.__connection:
+        self.__connection.rollback()
       return False
     # check output number of row
     if up.expected_change != up.NO_CHANGE_CONSTRAINT:
