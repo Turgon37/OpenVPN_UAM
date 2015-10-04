@@ -75,6 +75,7 @@ class Database(object):
       self.__value = value
       self.__reference = obj
       self.__expected_change = self.NO_CHANGE_CONSTRAINT
+      self.__last_update = None
       self.__error = False
       self.__error_msg = None
 
@@ -119,14 +120,6 @@ class Database(object):
       """
       return self.__expected_change
 
-    @expected_change.setter
-    def expected_change(self, num):
-      """Set the expected number of rows
-
-      @param num [int] : the number of row expected
-      """
-      self.__expected_change = num
-
     @property
     def is_error(self):
       """Return the error state of this update
@@ -142,6 +135,15 @@ class Database(object):
       @return [str] : the error description if available
       """
       return self.__error_msg
+
+# Setters
+    @expected_change.setter
+    def expected_change(self, num):
+      """Set the expected number of rows
+
+      @param num [int] : the number of row expected
+      """
+      self.__expected_change = num
 
     @is_error.setter
     def is_error(self, state):
@@ -161,6 +163,24 @@ class Database(object):
       assert isinstance(msg, str)
       self.__error_msg = msg
 
+# API
+    def update(self):
+      """Update the time of the last adapter push
+      """
+      self.__last_update = time.time()
+
+    def hasToBeUpdated(self):
+      """Indicates if the current DbUpdate must be push to the adapter
+
+      @return [bool] the 'toBeUpdatedStatus' of this update query
+      """
+      # if none => must be updated
+      if self.__last_update is None:
+        return True
+      else:
+        return (time.time() - self.__last_update) >= 30
+
+# Tools
     def __str__(self):
       """Return a basic definition of this update query as string
 
@@ -187,7 +207,7 @@ class Database(object):
     # ask again the same query, the result will not be get from adapter
     # but from this attributes. This process implement a cache system for
     # data of this application
-    self.__l_user = None
+    self.__l_user = []
     # The database data are polled from adapter at a specific time interval
     # this interval is specified by theses following two values
     # number of second from epoch at the last adapter polling
@@ -372,10 +392,10 @@ class Database(object):
     """
     return self.__db_wait_time
 
-  def __getUserList(self):
+  def __getUserListFromAdapter(self):
     """Call the adapter to retrieve user list from its associated storage
 
-    @return [list<User>] :
+    @return [list<User>] : the list of user given from adapter
     """
     l = self.__adapter.getUserList()
     if l is not None:
@@ -383,41 +403,74 @@ class Database(object):
         row.db = self
     return l
 
+  def api(func):
+    """Decorator for all API functions
+
+    Apply this decorator to all functions that belong to the external API
+    """
+    def backgroundTask(self, *args, **kwargs):
+      """Execute background tasks for databases
+
+      This function makes some background tasks for the database :
+        * check data's cache validity
+        * process update on required
+      """
+      assert self.__status == self.OPEN
+
+      # CHECK DATA CACHE VALIDITY
+      # refresh the internal cached list by ask again the adapter
+      # csheck if the last poll have been realized from sufficient amount
+      # of time
+      if ((time.time() - self.__db_poll_ref >= self.__db_poll_time) and
+         self.__queue_update.empty()):
+        g_sys_log.debug("=> Pull data from the adapter")
+        l_u = self.__getUserListFromAdapter()
+        # error in data retrieving from DB
+        if l_u is not None:
+          self.__db_poll_ref = time.time()
+          # set the reference to self into all user entities
+          self.__l_user = l_u
+        else:
+          g_sys_log.error("Unable to fetch data from adapter. Use local data")
+
+      self.__processUpdate()
+      return func(self, *args, **kwargs)
+    return backgroundTask
+
   def __processUpdate(self):
     """Treat all update request which are pending into the queue
     """
-    while not self.__queue_update.empty():
+    for i in range(self.__queue_update.qsize()):
       try:
         up = self.__queue_update.get_nowait()
-        # if update failed into adapter
-        if not self.__adapter.processUpdate(up):
-          g_sys_log.error("Error during update query : " + str(up))
-          # push the update query into error queue
-          self.__queue_error.put(up)
       except queue.Empty:
         return
 
+      # if it is not the time for the update to be performed
+      if not up.hasToBeUpdated():
+        self.__queue_update.put_nowait(up)
+      else:
+        # if update failed into adapter
+        up.update()
+        if not self.__adapter.processUpdate(up):
+          # an error mean the update has been performed but incorrectly
+          if up.is_error:
+            g_sys_log.error("Error during update query : " + str(up))
+            # push the update query into error queue
+            self.__queue_error.put(up)
+          # no error means that the update has not been performed
+          else:
+            g_sys_log.error("Error with adapter during update query : " + str(up))
+            # push the update query into error queue
+            self.__queue_update.put_nowait(up)
+
 # API DATABASE
+  @api
   def getUserList(self):
     """Call the adapter to return the current user list
 
     @return [list<User>] the current list of user
     """
-    assert self.__status == self.OPEN
-    # refresh the internal cached list by ask again the adapter
-    # check if the last poll have been realized from sufficient amount
-    # of time
-    if ((time.time() - self.__db_poll_ref >= self.__db_poll_time) and
-       self.__queue_update.empty()):
-      g_sys_log.debug("=> Pull data from the adapter")
-      l_u = self.__getUserList()
-      # error in data retrieving from DB
-      if l_u is not None:
-        self.__db_poll_ref = time.time()
-        # set the reference to self into all user entities
-        self.__l_user = l_u
-      else:
-        g_sys_log.error("Unable to fetch data from adapter. Use local data")
     return self.__l_user
 
   def getEnabledUserList(self):
