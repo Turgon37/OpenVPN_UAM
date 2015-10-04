@@ -138,12 +138,12 @@ Return code :
                                                cmd_short_opts,
                                                cmd_long_opts)
     except getopt.GetoptError as e:
-      logger.error(e)
+      logger.fatal(e)
       self.showUsage()
       return 2
     except Exception as e:
-      self.__logger.error('Problem during parameters interpretation :')
-      self.__logger.error('   ' + str(e))
+      self.__logger.fatal('Problem during parameters interpretation :')
+      self.__logger.fata('   ' + str(e))
       return 1
 
     self.__parseCmdLineOptions(given_options_list)
@@ -152,7 +152,7 @@ Return code :
       self.__program = OpenVPNUAM.OpenVPNUAM(self.__conf['background'],
                                              self.__conf['log_level'])
       if not self.__program.load(self.__conf['config_file']):
-        logger.error('Unable to load configuration file')
+        logger.fatal('Unable to load configuration file')
         return 3
       return not self.__program.start(self.__conf['pid_file'])
     except Exception as e:
