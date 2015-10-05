@@ -81,6 +81,9 @@ class EventReceiver(object):
       g_sys_log.warning("No specific event handler configured. " +
                         "Only syslog message will be generated on events")
     else:
+      # this boolean indicates if at least one event handler support
+      # the CAP.CAP_FILE capabilities
+      have_file_cap = False
       for hs_n in hs.split(','):
         hs_n = hs_n.strip()
         g_sys_log.debug("Loading event handler with name '%s'", hs_n)
@@ -124,6 +127,14 @@ class EventReceiver(object):
 
         g_sys_log.debug("Handler '%s' loaded with CAP %s",
                         hdlr.name, hdlr.capabilities)
+        if BaseHandler.CAP.CAP_FILE in hdlr.capabilities:
+          have_file_cap = True
+        self.__l_handler.append(hdlr)
+      # warning if no handler support CAP FILE
+      if have_file_cap is False:
+        g_sys_log.warning("No handler suppport FILE sending." +
+                          " New certificate will not be send to user")
+
     return True
     # assert isinstance(criticality, (int, string))
     # assert isinstance(message, string)
