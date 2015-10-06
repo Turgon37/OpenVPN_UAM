@@ -61,19 +61,19 @@ class Hostname(object):
     # python model
     # This is the list of NOT YET AVAILABLE certificates
     # These certificates doesn't need to perform specific action on them
-    self.__lst_certificate_soon_valid = []
+    self.__l_certificate_soon_valid = []
     # This is the list of VALID certificates
     # These certificates doesn't need to perform specific action on them
-    self.__lst_certificate_valid = []
+    self.__l_certificate_valid = []
     # This is the list of SOON EXPIRED certificates
     # If there is a certificates in this list it indicates that the program
     # must begin to perform a regen of new certificate to prevent VPN accesss
     # failure
-    self.__lst_certificate_soon_expired = []
+    self.__l_certificate_soon_expired = []
     # This is the list of EXPIRED certificates
     # Certificates in this list are sentenced to be destroyed by python garbage
     # collector in the next DB update
-    self.__lst_certificate_expired = []
+    self.__l_certificate_expired = []
     # This is the reference to the main database class
     # it is used to perform self object update call
     # Exemple if you want to update a attribut of an instance of this class
@@ -113,7 +113,7 @@ class Hostname(object):
       assert isinstance(cert, Certificate)
       # SOON VALID
       if cur_time < cert.certificate_begin_time:
-        self.__lst_certificate_soon_valid.append(cert)
+        self.__l_certificate_soon_valid.append(cert)
       # CURRENTLY VALID
       elif (cert.certificate_begin_time <= cur_time and
             cur_time <= cert.certificate_end_time):
@@ -141,12 +141,12 @@ class Hostname(object):
         # if current timedate is out of expiry anticipation bounds
         if cur_time < (cert.certificate_end_time -
                        timedelta(days=d, hours=h, minutes=m)):
-          self.__lst_certificate_valid.append(cert)
+          self.__l_certificate_valid.append(cert)
         else:
-          self.__lst_certificate_soon_expired.append(cert)
+          self.__l_certificate_soon_expired.append(cert)
       # EXPIRED
       else:
-        self.__lst_certificate_expired.append(cert)
+        self.__l_certificate_expired.append(cert)
 
 # Getters methods
   @property
@@ -187,14 +187,14 @@ class Hostname(object):
 
     return [list<Certificate>]
     """
-    return self.__lst_certificate_valid
+    return self.__l_certificate_valid
 
   def getCertificateSoonExpiredList(self):
     """Return the list of soon expired certificate
 
     return [list<Certificate>]
     """
-    return self.__lst_certificate_soon_expired
+    return self.__l_certificate_soon_expired
 
   def getCertificateValidCount(self):
     """Compute the total amount of certificate currently valid
@@ -202,8 +202,8 @@ class Hostname(object):
     @return [int] the amount of currently valid certificate
           include VALID + SOON EXPIRED
     """
-    return (len(self.__lst_certificate_valid) +
-            len(self.__lst_certificate_soon_expired))
+    return (len(self.__l_certificate_valid) +
+            len(self.__l_certificate_soon_expired))
 
 # Setters methods
   @db.setter
@@ -215,13 +215,13 @@ class Hostname(object):
     """
     assert self.__db is None
     self.__db = db
-    for h in self.__lst_certificate_soon_valid:
+    for h in self.__l_certificate_soon_valid:
       h.db = db
-    for h in self.__lst_certificate_valid:
+    for h in self.__l_certificate_valid:
       h.db = db
-    for h in self.__lst_certificate_soon_expired:
+    for h in self.__l_certificate_soon_expired:
       h.db = db
-    for h in self.__lst_certificate_expired:
+    for h in self.__l_certificate_expired:
       h.db = db
 
 # API methods
@@ -233,54 +233,21 @@ class Hostname(object):
     """
     lst_all = []
 
-    for h in self.__lst_certificate_soon_valid:
+    for h in self.__l_certificate_soon_valid:
       lst_all.append(h)
-    self.__lst_certificate_soon_valid = []
+    self.__l_certificate_soon_valid = []
 
-    for h in self.__lst_certificate_valid:
+    for h in self.__l_certificate_valid:
       lst_all.append(h)
-    self.__lst_certificate_valid = []
+    self.__l_certificate_valid = []
 
-    for h in self.__lst_certificate_soon_expired:
+    for h in self.__l_certificate_soon_expired:
       lst_all.append(h)
-    self.__lst_certificate_soon_expired = []
+    self.__l_certificate_soon_expired = []
 
     # DON'T CARE ABOUT EXPIRED CERTIFICATE
 
     self.loadCertificate(lst_all)
-
-# Private methods
-  def __update(self):
-    """update(): Change the date of the last update of the
-    hostname
-    """
-    self._update_time = datetime.datetime.today()
-
-  def enable(self):
-    """enable(): Set hostname enable
-    """
-    self._is_enable = True
-    self.__update()
-
-  def disable(self):
-    """disable(): Set hostname disable
-    """
-    self._is_enabled = False
-    self.__update()
-
-  def setOnline(self):
-    """setOnline(): Change the status of the hostname to
-    online
-    """
-    self._is_online = True
-    self.__update()
-
-  def setOffline(self):
-    """setOffline(): Change the status of the hostname to
-    offline
-    """
-    self._is_online = False
-    self.__update()
 
 # DEBUG methods
   def __str__(self):
@@ -294,13 +261,13 @@ class Hostname(object):
                "\n    ONLINE STATUS = " + str(self._is_online) +
                "\n    CREATED ON = " + str(self._creation_time) +
                "\n    UPDATED ON = " + str(self._update_time))
-    for c in self.__lst_certificate_soon_valid:
+    for c in self.__l_certificate_soon_valid:
       content += "\n  SV-" + str(c)
-    for c in self.__lst_certificate_valid:
+    for c in self.__l_certificate_valid:
       content += "\n   V-" + str(c)
-    for c in self.__lst_certificate_soon_expired:
+    for c in self.__l_certificate_soon_expired:
       content += "\n  SE-" + str(c)
-    for c in self.__lst_certificate_expired:
+    for c in self.__l_certificate_expired:
       content += "\n   E-" + str(c)
     return content
 
@@ -309,9 +276,15 @@ class Hostname(object):
 
     @return [str] a formatted string that describe this hostname
     """
-    return ("[id(" + str(self._id) + ")," +
-            " name(" + str(self._name) + ")," +
-            " enable(" + str(self._is_enabled) + ")," +
-            " createdon(" + str(self._creation_time) + ")," +
-            " updatedon(" + str(self._update_time) + ")," +
-            " certificate(" + str(len(self.__lst_certificate)) + ")]")
+    return ("[id({}), name({}), enable({}), createdon({}), updatedon({})," +
+            " certificate-sv({}), certificate-v({})," +
+            " certificate-se({}), certificate-e({})").format(
+        str(self._id),
+        str(self._name),
+        str(self._is_enabled),
+        str(self._creation_time),
+        str(self._update_time),
+        str(len(self.__l_certificate_soon_valid)),
+        str(len(self.__l_certificate_valid)),
+        str(len(self.__l_certificate_soon_expired)),
+        str(len(self.__l_certificate_expired)))
