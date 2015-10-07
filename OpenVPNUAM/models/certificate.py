@@ -74,23 +74,14 @@ class Certificate(object):
         g_sys_log.error('Unknown attribute from source "' + key + '"')
 
 # Getters methods
-  @property
-  def certificate_begin_time(self):
-    """Return the NOT BEFORE time of this certificate
-
-    @return [datetime.datetime] The time at which the certificate will become
-    valid
+  def __getattribute__(self, key):
+    """Upgrade default getter to allow get semi-private attributes
     """
-    return self._certificate_begin_time
-
-  @property
-  def certificate_end_time(self):
-    """Return the NOT AFTER time of this certificate
-
-    @return [datetime.datetime] The time at which the certificate will become
-    expired
-    """
-    return self._certificate_end_time
+    try:
+      return object.__getattribute__(self, "_" + key)
+    except AttributeError:
+      pass
+    return object.__getattribute__(self, key)
 
   def getValidityDuration(self):
     """Calculate the validity duration of a certificate
@@ -125,10 +116,10 @@ class Certificate(object):
 
     @return [str] a formatted string that describe this certificate
     """
-    content = ("CERTIFICAT (" + str(self._id) + ")" +
-               "\n      IS_PASSWORD = " + str(self._is_password) +
-               "\n      REVOKED REASON = " + str(self._revoked_reason) +
-               "\n      REVOKED TIME = " + str(self._revoked_time) +
-               "\n      NOT BEFORE = " + str(self._certificate_begin_time) +
-               "\n      NOT AFTER = " + str(self._certificate_end_time))
+    content = ("CERTIFICAT (" + str(self.id) + ")" +
+               "\n      IS_PASSWORD = " + str(self.is_password) +
+               "\n      REVOKED REASON = " + str(self.revoked_reason) +
+               "\n      REVOKED TIME = " + str(self.revoked_time) +
+               "\n      NOT BEFORE = " + str(self.certificate_begin_time) +
+               "\n      NOT AFTER = " + str(self.certificate_end_time))
     return content

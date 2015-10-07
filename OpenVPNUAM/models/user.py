@@ -92,20 +92,16 @@ class User(object):
     assert isinstance(hostnames, list)
     self.__lst_hostname = hostnames
 
-# UPDATE
-  def __update(self, field, value):
-    """Perform an update of field with the new value in 'value'
-
-    This update will be propagate to the database handler for being
-
-    @param field [str] the name of the attribut to update
-    @param field [str] value
-    """
-    assert(hasattr(self, "_" + field))
-    setattr(self, "_" + field, value)
-    self.db.update(field, value, self, 1)
-
 # Getters methods
+  def __getattribute__(self, key):
+    """Upgrade default getter to allow get semi-private attributes
+    """
+    try:
+      return object.__getattribute__(self, "_" + key)
+    except AttributeError:
+      pass
+    return object.__getattribute__(self, key)
+
   def getHostnameList(self):
     """Get the list of the user's hostname
 
@@ -125,46 +121,6 @@ class User(object):
     return l_host
 
   @property
-  def id(self):
-    """Return the primary id of this user
-
-    @return [int] the id of this user
-    """
-    return self._id
-
-  @property
-  def is_enabled(self):
-    """Return get the activation state of this hostname
-
-    @return [bool] : the activation state of the hostname
-    """
-    return self._is_enabled
-
-  @property
-  def cuid(self):
-    """Return the Current unique User ID string
-
-    @return [str] the cuid
-    """
-    return self._cuid
-
-  @property
-  def start_time(self):
-    """Return get the activation state of this hostname
-
-    @return [bool] : the activation state of the hostname
-    """
-    return self._start_time
-
-  @property
-  def stop_time(self):
-    """Return get the activation state of this hostname
-
-    @return [bool] : the activation state of the hostname
-    """
-    return self._stop_time
-
-  @property
   def db(self):
     """Return the db instance associated with this user
 
@@ -174,21 +130,15 @@ class User(object):
     return self.__db
 
 # Setters methods
-  @start_time.setter
-  def start_time(self, value):
-    """Set the start time for this user
-
-    @param [MIX] : the new value for the start time
+  def __setattr__(self, key, value):
+    """Upgrade default setter to trigger database update
     """
-    self.__update('start_time', value)
-
-  @stop_time.setter
-  def stop_time(self, value):
-    """Set the stop time for this user
-
-    @param [MIX] : the new value for the stop time
-    """
-    self.__update('stop_time', value)
+    # update concerns a Model's attribut
+    if hasattr(self, "_" + key):
+      setattr(self, "_" + key, value)
+      self.db.update(key, value, self, 1)
+    else:
+      return object.__setattr__(self, key, value)
 
   @db.setter
   def db(self, db):
@@ -209,15 +159,15 @@ class User(object):
     Call the update routine to perform the change in database
     """
     if self._is_enabled:
-      g_sys_log.warning('User (%d) "%s" already enabled',
+      g_sys_log.warning("User (%d) '%s' already enabled",
                         self.id,
                         self.cuid)
       # TODO data consistency
     else:
-      g_sys_log.info('Enable user (%d) "%s"',
+      g_sys_log.info("Enable user (%d) '%s'",
                      self.id,
                      self.cuid)
-      self.__update('is_enabled', True)
+      self.is_enabled = True
 
   def disable(self):
     """Enable the current user
@@ -226,14 +176,14 @@ class User(object):
     """
     if not self._is_enabled:
       # TODO data consistency
-      g_sys_log.warning('User (%d) "%s" already disabled',
+      g_sys_log.warning("User (%d) '%s' already disabled",
                         self.id,
                         self.cuid)
     else:
-      g_sys_log.info('Disable user (%d) "%s"',
+      g_sys_log.info("Disable user (%d) '%s'",
                      self.id,
                      self.cuid)
-      self.__update('is_enabled', False)
+      self.is_enabled = False
 
 # DEBUG methods
   def __str__(self):
@@ -243,15 +193,15 @@ class User(object):
     """
     content = ("USER (" + str(self.id) + ")" +
                "\n  CUID = " + str(self.cuid) +
-               "\n  UMAIL = " + str(self._user_mail) +
-               "\n  CERTMAIL = " + str(self._certificate_mail) +
-               "\n  PASSMAIL = " + str(self._password_mail) +
+               "\n  UMAIL = " + str(self.user_mail) +
+               "\n  CERTMAIL = " + str(self.certificate_mail) +
+               "\n  PASSMAIL = " + str(self.password_mail) +
                "\n  STATUS = " + str(self.is_enabled) +
-               "\n  CERT PASSWD = " + str(self._certificate_password) +
+               "\n  CERT PASSWD = " + str(self.certificate_password) +
                "\n  START DATE = " + str(self.start_time) +
                "\n  END DATE = " + str(self.stop_time) +
-               "\n  CREATED ON = " + str(self._creation_time) +
-               "\n  UPDATED ON = " + str(self._update_time))
+               "\n  CREATED ON = " + str(self.creation_time) +
+               "\n  UPDATED ON = " + str(self.update_time))
     for h in self.__lst_hostname:
       content += "\n" + str(h)
     return content
@@ -263,13 +213,13 @@ class User(object):
     """
     return ("[id(" + str(self.id) + ")," +
             " cuid(" + str(self.cuid) + ")," +
-            " umail(" + str(self._user_mail) + ")," +
-            " certmail(" + str(self._certificate_mail) + ")," +
-            " passmail(" + str(self._password_mail) + ")," +
+            " umail(" + str(self.user_mail) + ")," +
+            " certmail(" + str(self.certificate_mail) + ")," +
+            " passmail(" + str(self.password_mail) + ")," +
             " enable(" + str(self.is_enabled) + ")," +
-            " certpasswd(" + str(self._certificate_password) + ")," +
+            " certpasswd(" + str(self.certificate_password) + ")," +
             " startdate(" + str(self.start_time) + ")," +
             " enddate(" + str(self.stop_time) + ")," +
-            " createdon(" + str(self._creation_time) + ")," +
-            " updatedon(" + str(self._update_time) + ")," +
+            " createdon(" + str(self.creation_time) + ")," +
+            " updatedon(" + str(self.update_time) + ")," +
             " hostname(" + str(len(self.__lst_hostname)) + ")]")

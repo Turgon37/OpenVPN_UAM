@@ -59,6 +59,7 @@ class Hostname(object):
     self._creation_time = datetime.datetime.today()
     self._update_time = None
     # python model
+    self._user = None
     # This is the list of NOT YET AVAILABLE certificates
     # These certificates doesn't need to perform specific action on them
     self.__l_certificate_soon_valid = []
@@ -149,29 +150,14 @@ class Hostname(object):
         self.__l_certificate_expired.append(cert)
 
 # Getters methods
-  @property
-  def id(self):
-    """Return the primary id of this hostname
-
-    @return [int] the id
+  def __getattribute__(self, key):
+    """Upgrade default getter to allow get semi-private attributes
     """
-    return self._id
-
-  @property
-  def is_enabled(self):
-    """Return get the activation state of this hostname
-
-    @return [bool] : the activation state of the hostname
-    """
-    return self._is_enabled
-
-  @property
-  def name(self):
-    """Get name of this hostname
-
-    @return [str] : the name of the hostname
-    """
-    return self._name
+    try:
+      return object.__getattribute__(self, "_" + key)
+    except AttributeError:
+      pass
+    return object.__getattribute__(self, key)
 
   @property
   def db(self):
@@ -206,6 +192,16 @@ class Hostname(object):
             len(self.__l_certificate_soon_expired))
 
 # Setters methods
+  def __setattr__(self, key, value):
+    """Upgrade default setter to trigger database update
+    """
+    # update concerns a Model's attribut
+    if hasattr(self, "_" + key):
+      setattr(self, "_" + key, value)
+      self.db.update(key, value, self, 1)
+    else:
+      return object.__setattr__(self, key, value)
+
   @db.setter
   def db(self, db):
     """Set the internal DB link to allow self update
