@@ -31,9 +31,14 @@ renewal and also their revocation.
 # System imports
 import logging
 import os
+import datetime
 
 try:
   import OpenSSL
+  from OpenSSL import crypto
+  #OpenSSL.crypto._lib.OPENSSL_config(b"openssl.cn")
+
+  from OpenSSL import SSL
 except ImportError:
   raise Exception("Module OpenSSL required " +
                   " https://pypi.python.org/pypi/pyOpenSSL")
@@ -65,6 +70,7 @@ class PublicKeyInfrastructure(object):
     self.__server_certificate = None
     # This directory will contains newly created certificates
     self.__new_cert_directory = "certificates/"
+    self.__cert_key_size = int(2048)
 
   def load(self):
     """Return a boolean indicates if PKI is ready to work or not
@@ -73,6 +79,8 @@ class PublicKeyInfrastructure(object):
     that indicates if the PKI is ready to work with certificate or not
     @return [bool] The ready status
     """
+    g_sys_log.info("Using %s",
+                   SSL.SSLeay_version(SSL.SSLEAY_VERSION).decode())
     # check PKI section in configuration file
     if not self.__cp.has_section(self.__cp.PKI_SECTION):
       g_sys_log.error('Missing pki section in configuration file')
@@ -84,6 +92,11 @@ class PublicKeyInfrastructure(object):
         self.__cp.PKI_SECTION,
         'cert_directory',
         fallback=self.__new_cert_directory)
+
+    self.__cert_key_size = self.__cp.getint(
+        self.__cp.PKI_SECTION,
+        'cert_key_size',
+        fallback=self.__cert_key_size)
 
     # if cert path doesn't exist
     if not os.path.exists(self.__new_cert_directory):
@@ -207,3 +220,43 @@ class PublicKeyInfrastructure(object):
         g_sys_log.error('Unable to import private key : ' + str(e))
         return None
     return key
+
+  def generateUserCertificate(self, user, hostname):
+    """
+    """
+    g_sys_log.debug("Building a new certificate for Hostname(%s) '%s'",
+                    hostname.id, hostname.name)
+    # build a new key for the given username
+    g_sys_log.debug("Generate a %s bits RSA Private Key", self.__cert_key_size)
+    key = OpenSSL.crypto.PKey()
+    key.generate_key(OpenSSL.crypto.TYPE_RSA, self.__cert_key_size)
+
+    g_sys_log.debug("Generate a X509 certificate")
+    cert = OpenSSL.crypto.X509()
+    cert.get_subject().C = self.__certificate_authority.get_subject().C
+    cert.get_subject().ST = self.__certificate_authority.get_subject().ST
+    cert.get_subject().L = self.__certificate_authority.get_subject().L
+    cert.get_subject().O = self.__certificate_authority.get_subject().O
+    cert.get_subject().OU = self.__certificate_authority.get_subject().OU
+    cert.get_subject().CN = user.cuid + "_" + hostname.name
+    cert.get_subject().emailAddress = user.user_mail
+    cert.get_subject().name = (user.cuid + "_" + hostname.name + "_" +
+                              str(datetime.datetime.today()) )
+
+    cert.set_notBefore(b"20000101000000Z")
+    cert.set_notAfter(b"20200101000000Z")
+
+    cert.set_serial_number(0)
+    cert.set_issuer(self.__certificate_authority.get_subject())
+    cert.set_pubkey(key)
+    #cert.sign(cakey, "sha1")
+
+    # open output file in binary mode
+    file_key = open("rsa.key", "wb")
+    file_key.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, key))
+    file_key.close()
+
+    # open output file in binary mode
+    file_cert = open("rsa.crt", "wb")
+    file_cert.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+    file_cert.close()
