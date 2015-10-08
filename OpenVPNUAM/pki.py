@@ -167,8 +167,8 @@ class PublicKeyInfrastructure(object):
     """
     assert path is not None
     try:
-      # open file in text mode
-      f_cert = open(path, 'rt').read()
+      # open file in binary mode
+      f_cert = open(path, 'rb').read()
     except IOError as e:
       g_sys_log.error('Unable to open certificate file : ' + str(e))
       return None
@@ -199,8 +199,8 @@ class PublicKeyInfrastructure(object):
     """
     assert path is not None
     try:
-      # open file in text mode
-      f_cert = open(path, 'rt').read()
+      # open file in binary mode
+      f_cert = open(path, 'rb').read()
     except IOError as e:
       g_sys_log.error('Unable to open private key file : ' + str(e))
       return None
