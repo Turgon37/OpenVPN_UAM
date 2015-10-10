@@ -30,4 +30,4 @@ from .user import User
 from .hostname import Hostname
 from .certificate import Certificate
 
-__all__ = ['user', 'hostname']
+__all__ = ['user', 'hostname', 'certificate']

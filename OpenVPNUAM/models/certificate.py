@@ -41,7 +41,7 @@ class Certificate(object):
   """Constructor: Build an instanceof the certificate program class
   """
 
-  def __init__(self):
+  def __init__(self, begin, end):
     """Constructor: Build a new empty certificate
     """
     # database model
@@ -49,13 +49,13 @@ class Certificate(object):
     self._is_password = True
     self._revoked_reason = None
     self._revoked_time = None
-    self._certificate_begin_time = None
-    self._certificate_end_time = None
+    self._certificate_begin_time = begin
+    self._certificate_end_time = end
     # This is the reference to the main database class
     # it is used to perform self object update call
     # Exemple if you want to update a attribut of an instance of this class
-    # like one of theses above, you will need to call the main database to store
-    # change into database engine
+    # like one of theses above, you will need to call the main database to
+    # store change into database engine
     self.__db = None
 
   def load(self, attributes):
@@ -92,7 +92,7 @@ class Certificate(object):
 
   @property
   def db(self):
-    """Return the db instance associated with this user
+    """Return the db instance associated with this certificate
 
     @return [Database] the database reference
     """
