@@ -22,7 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Specific configuration parser for NETSAV module
+"""Specific configuration parser for OpenVPN UAM module
 
 It provide a parser class which extend the original ConfigParser class
 in order to add some function, expecially for retrieving directly
