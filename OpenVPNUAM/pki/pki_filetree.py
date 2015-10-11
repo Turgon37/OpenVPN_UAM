@@ -33,6 +33,7 @@ import os
 
 import OpenSSL
 from OpenSSL import crypto
+from OpenSSL.crypto import (_lib as lib, _ffi as ffi)
 
 # Project imports
 from ..config import Error
@@ -53,6 +54,8 @@ class PKIFileTree(object):
     self.__cp = confparser
     # the root path of file tree
     self.__new_cert_directory = "certificates/"
+    # the cipher to use for private key encryption
+    self.__cipher = "DES3"
 
   def load(self):
     """Return a boolean indicates if PKI is ready to work or not
@@ -73,6 +76,16 @@ class PKIFileTree(object):
         self.__cp.PKI_SECTION,
         'cert_directory',
         fallback=self.__new_cert_directory).rstrip('/') + '/'
+
+    self.__cipher = self.__cp.get(
+        self.__cp.PKI_SECTION,
+        'cert_key_cipher',
+        fallback=self.__cipher)
+
+    # BAD USAGE but no other solution
+    if lib.EVP_get_cipherbyname(self.__cipher.encode()) == ffi.NULL:
+      g_sys_log.fatal("Invalid cipher name")
+      return False
 
     if not self.makePath(self.__new_cert_directory):
       g_sys_log.fatal("Certificate directory is invalid")

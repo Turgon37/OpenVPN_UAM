@@ -30,15 +30,16 @@ This is the entry point of all SSL operations
 """
 
 # System imports
+import datetime
 import logging
 import os
-import datetime
 
 try:
   import OpenSSL
   from OpenSSL import crypto
   from OpenSSL import SSL
-  #OpenSSL.crypto._lib.OPENSSL_config(b"openssl.cn")
+  from OpenSSL.crypto import (_lib as lib, _ffi as ffi)
+  lib.OPENSSL_config(b"openssl.cn")
 except ImportError:
   raise Exception("Module OpenSSL required " +
                   " https://pypi.python.org/pypi/pyOpenSSL")
@@ -76,6 +77,13 @@ class PublicKeyInfrastructure(object):
     # number of bits for new private key
     self.__cert_key_size = int(2048)
 
+    self.__cert_key_password_size = int(6)
+    # the digest use for sign new certificates
+    self.__digest = "sha512"
+    # a boolean which determine if CSR must be exported to FS or not
+    self.__keep_request = False
+
+
   def load(self):
     """Return a boolean indicates if PKI is ready to work or not
 
@@ -95,8 +103,23 @@ class PublicKeyInfrastructure(object):
 
     self.__cert_key_size = self.__cp.getint(
         self.__cp.PKI_SECTION,
-        'cert_key_size',
+        'new_cert_key_size',
         fallback=self.__cert_key_size)
+
+    self.__keep_request = self.__cp.getboolean(
+        self.__cp.PKI_SECTION,
+        'keep_certificate_request',
+        fallback=self.__keep_request)
+
+    self.__digest = self.__cp.get(
+        self.__cp.PKI_SECTION,
+        'digest',
+        fallback=self.__digest)
+
+    # BAD USAGE but no other solution
+    if lib.EVP_get_digestbyname(self.__digest.encode()) == ffi.NULL:
+      g_sys_log.fatal("No such digest method")
+      return False
 
     try:
       self.__certificate_authority = self.loadCertificate(
@@ -228,7 +251,7 @@ class PublicKeyInfrastructure(object):
     req.get_subject().name = (user.cuid + "_" + hostname.name + "_" +
                               str(today))
     req.set_pubkey(key)
-    req.sign(key, "sha512")
+    req.sign(key, self.__digest)
 
     # BUILD CERTIFICATE
     g_sys_log.debug("Generate a X509 certificate")
@@ -255,10 +278,11 @@ class PublicKeyInfrastructure(object):
     cert.set_pubkey(req.get_pubkey())
     cert.sign(self.__certificate_authority_key, "sha512")
 
+    # configure settings
     if user.password_mail is not None:
       m_cert.is_password = True
       # generate a random password
-      password = "coucou"
+      password = random_generator(self.__cert_key_password_size)
     elif user.certificate_password is not None:
       m_cert.is_password = True
       # use configured password
@@ -266,6 +290,8 @@ class PublicKeyInfrastructure(object):
     else:
       password = None
 
+    # export certificate
     self.__ft.storePKIUserCertificate(user, hostname, m_cert, key, password)
-    self.__ft.storePKIUserCertificate(user, hostname, m_cert, req)
+    if self.__keep_request:
+      self.__ft.storePKIUserCertificate(user, hostname, m_cert, req)
     self.__ft.storePKIUserCertificate(user, hostname, m_cert, cert)
