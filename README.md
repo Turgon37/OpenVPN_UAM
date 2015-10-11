@@ -1,13 +1,16 @@
 # OVPNUAM - OpenVPN Users Access Manager
 
-This projected is licensed under the terms of the MIT license
+This project is licensed under the terms of the MIT license
 
 Not yet available
 
 
 A python3 daemon that manage users's access to OpenVPN service.
-This concerns all credential generation feature, like automatic key re build on a specific time interval and some administratives features like usages logging, users connection validation with a database storing
 
+This daemon is in charge of ensure correct access to all user of an OpenVPN server.
+It must rebuild new certificate for user with expired certificate.
+It provide a dynamic adminitration system to control when an user is able to connect to the server and when not, eent if he have a valid certificate.
+It perform some log of all users connection.
 
 ## Installation
 
