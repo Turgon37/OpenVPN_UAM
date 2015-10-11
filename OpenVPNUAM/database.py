@@ -54,11 +54,36 @@ class DbRequest(object):
   """
   NO_CHANGE_CONSTRAINT = -1
 
-  def __init__(self):
+  def __init__(self, src, realtime=False):
+    """Init a new DBRequest with default attributes
+
+    @param src [MIX] the object source of request
+    @param realtime [bool] if True, this request cannot be delayed in
+        case of adapter failure. This mean that this query must be processed
+        immediatly
+    """
+    self.__source = src
     self.__expected_change = self.NO_CHANGE_CONSTRAINT
-    self.__last_update = None
+    self.__last_attempt = None
     self.__error = False
     self.__error_msg = None
+    self.__realtime = realtime
+
+  @property
+  def source(self):
+    """Get the reference to the object instance designed by the insert
+
+    @return [object] the object to insert
+    """
+    return self.__source
+
+  @property
+  def source_type(self):
+    """Get the name of class for object that is source of this insert
+
+    @return [str] : the name of the class
+    """
+    return type(self.source).__name__
 
   @property
   def expected_change(self):
@@ -83,6 +108,15 @@ class DbRequest(object):
     @return [str] : the error description if available
     """
     return self.__error_msg
+
+  @property
+  def realtime(self):
+    """Return the realtime status
+
+    See the constructor for more detail
+    @return [bool] : the realtime status
+    """
+    return self.__realtime
 
 # Setters
   @expected_change.setter
@@ -112,21 +146,21 @@ class DbRequest(object):
     self.__error_msg = msg
 
 # API
-  def update(self):
+  def execute(self):
     """Update the time of the last adapter push
     """
-    self.__last_update = time.time()
+    self.__last_attempt = time.time()
 
-  def hasToBeUpdated(self):
-    """Indicates if the current DbUpdate must be push to the adapter
+  def hasToBeExecuted(self):
+    """Indicates if the current request must be push to the adapter
 
-    @return [bool] the 'toBeUpdatedStatus' of this update query
+    @return [bool] the 'to be performed status' of this query
     """
     # if none => must be updated
-    if self.__last_update is None:
+    if self.__last_attempt is None:
       return True
     else:
-      return (time.time() - self.__last_update) >= 30
+      return (time.time() - self.__last_attempt) >= 30
 
 
 class Database(object):
@@ -142,16 +176,15 @@ class Database(object):
   class DbUpdate(DbRequest):
 
     def __init__(self, field, value, obj):
-      """This build a update request
+      """This build an update request
 
       @param field [str] the name of the attribute to update
       @param value [mixed base type] the new value for the field above
       @param obj [object] the model instance to use as reference
       """
-      DbRequest.__init__(self)
+      DbRequest.__init__(self, obj)
       self.__field = field
       self.__value = value
-      self.__reference = obj
 
 # Getters
     @property
@@ -170,32 +203,61 @@ class Database(object):
       """
       return self.__value
 
-    @property
-    def target(self):
-      """Get the reference to the object instance designed by the update
-
-      @return [object] the target object
-      """
-      return self.__reference
-
-    @property
-    def target_type(self):
-      """Get the name of class for object in reference with this update
-
-      @return [str] : the name of the class
-      """
-      return type(self.target).__name__
-
 # Tools
     def __str__(self):
       """Return a basic definition of this update query as string
 
       @return [str] a string that describe the update request
       """
-      return (self.target_type +
-              "(" + str(self.target.id) + ")" +
+      return (self.source_type +
+              "(" + str(self.source.id) + ")" +
               "['" + self.field + "'] = " + str(self.value))
 # # //INSTANCE OF UPDATE REQUEST
+
+
+# # INSTANCE OF INSERT REQUEST
+  class DbInsert(DbRequest):
+
+    def __init__(self, obj, parent=None, realtime=False):
+      """This build an insert request
+
+      @param obj [object] the model instance to use as reference
+      @param realtime [bool] if True, this insert request cannot be delayed in
+          case of adapter failure. This mean that this insert must be processed
+          immediatly
+      """
+      DbRequest.__init__(self, obj, realtime)
+      self.__parent = parent
+
+# Getters
+    @property
+    def parent(self):
+      """Get the reference to the optionnal parent object
+
+      @return [object] the parent object if available
+      """
+      return self.__parent
+
+    @property
+    def parent_type(self):
+      """Get the name of class for object that is designed as parent
+
+      @return [str] : the name of the class
+      """
+      return type(self.parent).__name__
+
+# Tools
+    def __str__(self):
+      """Return a basic definition of this insert query as string
+
+      @return [str] a string that describe the insert request
+      """
+      msg = "NEW " + self.source_type
+      if self.parent:
+        msg += ("[parent] = " + str(self.parent_type.id) +
+                "(" + str(self.parent.id) + ")")
+      return msg
+# # //INSTANCE OF INSERT REQUEST
 
   def __init__(self, confparser):
     """Constructor: Build a new database object
@@ -229,6 +291,7 @@ class Database(object):
     # list no database pull will be perform to prevent local database from
     # update lost
     self.__queue_update = queue.Queue()
+    self.__queue_insert = queue.Queue()
     self.__queue_error = queue.Queue()
 
   def load(self):
@@ -455,22 +518,57 @@ class Database(object):
         return
 
       # if it is not the time for the update to be performed
-      if not up.hasToBeUpdated():
+      if not up.hasToBeExecuted():
         self.__queue_update.put_nowait(up)
       else:
         # if update failed into adapter
-        up.update()
+        up.execute()
         if not self.__adapter.processUpdate(up):
           # an error mean the update has been performed but incorrectly
           if up.is_error:
-            g_sys_log.error("Error during update query : " + str(up))
+            g_sys_log.error("Error during update query : %s", str(up))
             # push the update query into error queue
             self.__queue_error.put(up)
           # no error means that the update has not been performed
           else:
-            g_sys_log.error("Error with adapter during update query : " + str(up))
+            g_sys_log.error("Error with adapter during update query : %s",
+                            str(up))
             # push the update query into error queue
             self.__queue_update.put_nowait(up)
+
+  def __processInsert(self, ins=None):
+    """Treat all insert request which are pending into the queue or a single
+
+    @param ins [DbInsert] OPTIONNAL
+    @param [bool]
+    """
+    if ins:
+      return self.__adapter.processInsert(ins)
+
+    for i in range(self.__queue_insert.qsize()):
+      try:
+        ins = self.__queue_insert.get_nowait()
+      except queue.Empty:
+        return
+
+      # if it is not the time for the update to be performed
+      if not insert.hasToBeExecuted():
+        self.__queue_insert.put_nowait(ins)
+      else:
+        # if update failed into adapter
+        ins.execute()
+        if not self.__adapter.processInsert(ins):
+          # an error mean the update has been performed but incorrectly
+          if ins.is_error:
+            g_sys_log.error("Error during insert query : %s", str(ins))
+            # push the update query into error queue
+            self.__queue_error.put(ins)
+          # no error means that the update has not been performed
+          else:
+            g_sys_log.error("Error with adapter during update query : %s",
+                            str(ins))
+            # push the update query into error queue
+            self.__queue_update.put_nowait(ins)
 
 # API DATABASE
   @api
@@ -519,3 +617,24 @@ class Database(object):
     update.expected_change = count
     self.__queue_update.put(update)
     self.__processUpdate()
+
+  def insert(self, obj, parent=None, realtime=False):
+    """Queue a insert request
+
+    Attempt to insert the given new object into the database storage.
+    This function call the adapter to perform the insert request to the
+    storage engine.
+    @param obj [MIX] : the object (from model) to insert.
+          Be sure that his primary attribute is not set
+    @param parent [MIX] OPTIONNAL : the reference to a optionnal parent object.
+            This is usefull to link the obj to his parent by a foreign link
+    @param realtime [bool] :
+    """
+    assert obj.id is None
+    insert = Database.DbInsert(obj, parent, realtime)
+    # if set, the insert will be performed immediatly
+    if realtime:
+      return self.__processInsert(insert)
+
+    self.__queue_insert.put(insert)
+    self.__processInsert()

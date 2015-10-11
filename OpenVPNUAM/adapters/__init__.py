@@ -118,3 +118,14 @@ class Adapter(object):
           False if not
     """
     raise NotImplementedError("processUpdate")
+
+  def processInsert(self, ins):
+    """Treat an insert request
+
+    @param ins [Database.DbInsert] the instance of insert which contains
+      all parameters field
+    @return [bool] : the result of the operation
+          True if update success
+          False if not
+    """
+    raise NotImplementedError("processInsert")

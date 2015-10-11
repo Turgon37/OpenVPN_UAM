@@ -59,7 +59,6 @@ class Hostname(object):
     self._creation_time = datetime.datetime.today()
     self._update_time = None
     # python model
-    self._user = None
     # This is the list of NOT YET AVAILABLE certificates
     # These certificates doesn't need to perform specific action on them
     self.__l_certificate_soon_valid = []
@@ -254,6 +253,22 @@ class Hostname(object):
     # DON'T CARE ABOUT EXPIRED CERTIFICATE
 
     self.loadCertificate(lst_all)
+
+  def addCertificate(self, cert):
+    """Try to add the given certificate into the local storage
+
+    @param cert [Certificate] the certificate to add
+    @return [bool] True is add success, False otherwise
+    """
+    # check if the certificate have already been given to database
+    if cert.id is None:
+      cert.db = self.db
+      if not self.db.insert(cert, self, True):
+        return False
+
+    # insert into local collection
+    self.loadCertificate([cert])
+    return True
 
 # DEBUG methods
   def __str__(self):
