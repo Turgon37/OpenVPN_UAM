@@ -100,6 +100,16 @@ class Certificate(object):
     return self.__db
 
 # Setters methods
+  def __setattr__(self, key, value):
+    """Upgrade default setter to trigger database update
+    """
+    # update concerns a Model's attribut
+    if hasattr(self, "_" + key):
+      setattr(self, "_" + key, value)
+      self.db.update(key, value, self, 1)
+    else:
+      return object.__setattr__(self, key, value)
+
   @db.setter
   def db(self, db):
     """Set the internal DB link to allow self update
