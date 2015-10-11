@@ -26,6 +26,8 @@
 
 # System import
 import datetime
+import random
+import string
 import traceback
 
 
@@ -49,35 +51,51 @@ def helper_log_fatal(logger, file='error'):
 
 def datetimeToGeneralizedTime(date):
   """Convert a datetime instance to a date in GeneralizedFormat
-  
+
   @param date [datetime] the datetime in input
   @return [str] the date in GeneralizedFormat
   """
   return date.strftime("%Y%m%d%H%M%SZ")
 
-  
+
 def datetimeToGeneralizedTimeB(date):
   """Convert a datetime instance to a date in GeneralizedFormat
-  
+
   @param date [datetime] the datetime in input
   @return [bytes] the date in GeneralizedFormat compild in bytes object
   """
   return datetimeToGeneralizedTime(date).encode()
-  
-  
+
+
 def generalizedTimeToDatetime(string):
   """Convert a date in GeneralizedFormat to a datetime instance
-  
+
   @param string [str] the date in GeneralizedFormat
   @return [datetime] the datetime instance
   """
   return datetime.datetime.strptime(string, "%Y%m%d%H%M%SZ")
 
-  
+
 def generalizedTimeToDatetimeB(bytes_):
   """Convert a date in GeneralizedFormat to a datetime instance
-  
+
   @param bytes [bytes] the date in bytes compiled GeneralizedFormat
   @return [datetime] the datetime instance
   """
   return generalizedTimeToDatetime(bytes_.decode())
+
+
+def random_generator(size=6, chars=(string.ascii_uppercase +
+                                    string.ascii_lowercase +
+                                    string.digits)):
+  """Generate a random string by take char from chars set
+
+  @param size [int] the number of character to generate
+  @param chars [str] the list of character to use
+  @return [str] the random string
+  """
+  return ''.join(random.choice(chars) for x in range(size))
+
+
+if __name__ == '__main__':
+  print(random_generator())
