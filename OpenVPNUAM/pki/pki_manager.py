@@ -39,7 +39,6 @@ try:
   from OpenSSL import crypto
   from OpenSSL import SSL
   from OpenSSL.crypto import (_lib as lib, _ffi as ffi)
-  lib.OPENSSL_config(b"openssl.cn")
 except ImportError:
   raise Exception("Module OpenSSL required " +
                   " https://pypi.python.org/pypi/pyOpenSSL")
@@ -83,7 +82,6 @@ class PublicKeyInfrastructure(object):
     # a boolean which determine if CSR must be exported to FS or not
     self.__keep_request = False
 
-
   def load(self):
     """Return a boolean indicates if PKI is ready to work or not
 
@@ -120,6 +118,12 @@ class PublicKeyInfrastructure(object):
     if lib.EVP_get_digestbyname(self.__digest.encode()) == ffi.NULL:
       g_sys_log.fatal("No such digest method")
       return False
+
+    if not self.__cp.has_option(self.__cp.PKI_SECTION, 'client_extensions'):
+      g_sys_log.warning("No SSL extensions configured for client certificate.")
+
+    if not self.__cp.has_option(self.__cp.PKI_SECTION, 'server_extensions'):
+      g_sys_log.warning("No SSL extensions configured for server certificate.")
 
     try:
       self.__certificate_authority = self.loadCertificate(
@@ -210,24 +214,65 @@ class PublicKeyInfrastructure(object):
       g_sys_log.error('Unable to open private key file : ' + str(e))
       return None
 
-    lib_crypto = OpenSSL.crypto
     try:
       # try to load the key as PEM format
-      key = lib_crypto.load_privatekey(lib_crypto.FILETYPE_PEM, f_cert)
-    except lib_crypto.Error as e:
+      key = crypto.load_privatekey(crypto.FILETYPE_PEM, f_cert)
+    except crypto.Error as e:
       # if error try with another format
       try:
         # try to load the cert as ASN1 format
-        key = lib_crypto.load_privatekey(lib_crypto.FILETYPE_ASN1, f_cert)
+        key = crypto.load_privatekey(crypto.FILETYPE_ASN1, f_cert)
         g_sys_log.warning('Private Key "%s" is not in PEM recommanded format',
                           path)
-      except lib_crypto.Error as e:
+      except crypto.Error as e:
         g_sys_log.error('Unable to import private key : ' + str(e))
         return None
     return key
 
-  def generateUserCertificate(self, user, hostname):
+  def loadExtensionFromSection(self, cert, section):
+    """Extract the list of extensions listed in a section of conf file
+
+    @param cert [X509] the certificate into add new extensions
+    @param section [str] the section from which to extract extensions
+      declarations
+    @return [list] The list of extensions.
     """
+    exts = []
+    if not self.__cp.has_section(section):
+      g_sys_log.warning("No extension found in section '%s'", section)
+      return
+
+    for (name, value) in self.__cp.items(section):
+      critical = False
+      subject = None
+      issuer = None
+      if name == 'subjectKeyIdentifier':
+        subject = cert
+      if name == 'authorityKeyIdentifier':
+        subject = cert
+        issuer = self.__certificate_authority
+      exts.append(
+          OpenSSL.crypto.X509Extension(name.encode(),
+                                       critical,
+                                       value.encode(),
+                                       subject,
+                                       issuer))
+# Disabled because the OpenSSL library doesn't forbid the 'critical' word
+#      items = value.split(',')
+#      if 'critical' in items:
+#        items.pop(items.index('critical'))
+#        critical = True
+#      data = str(','.join(items))
+#      exts.append(OpenSSL.crypto.X509Extension(name.encode(),
+#                                               critical,
+#                                               data.encode()))
+    cert.add_extensions(exts)
+
+  def generateUserCertificate(self, user, hostname):
+    """Generate a new Certificate for the given Hostname
+
+    @param user [User]
+    @param hostname [Hostname]
     """
     g_sys_log.debug("Building a new certificate for Hostname(%s) '%s'",
                     hostname.id, hostname.name)
@@ -272,11 +317,18 @@ class PublicKeyInfrastructure(object):
       g_sys_log.error("Hostname unable to insert new certificate with" +
                       " the configured adapter.")
       return
+
+    # BUILD CERTIFICATE
     cert.set_serial_number(m_cert.id)
     cert.set_issuer(self.__certificate_authority.get_subject())
     cert.set_subject(req.get_subject())
     cert.set_pubkey(req.get_pubkey())
-    cert.sign(self.__certificate_authority_key, "sha512")
+    self.loadExtensionFromSection(cert,
+                                  self.__cp.get(self.__cp.PKI_SECTION,
+                                                'client_extensions',
+                                                fallback=None))
+    cert.sign(self.__certificate_authority_key, self.__digest)
+    # /BUILD CERTIFICATE
 
     # configure settings
     if user.password_mail is not None:

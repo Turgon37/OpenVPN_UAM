@@ -63,6 +63,7 @@ class OVPNUAMConfigParser(ConfigParser):
     """Constructor : init a new config parser
     """
     ConfigParser.__init__(self)
+    self.optionxform = str
 
     # boolean that indicates if the configparser is available
     self.__is_config_loaded = False
