@@ -93,7 +93,7 @@ class User(object):
     self.__lst_hostname = hostnames
 
 # Getters methods
-  def __getattribute__(self, key):
+  def __getattr__(self, key):
     """Upgrade default getter to allow get semi-private attributes
     """
     try:

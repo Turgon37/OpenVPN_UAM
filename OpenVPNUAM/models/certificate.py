@@ -46,7 +46,7 @@ class Certificate(object):
     """
     # database model
     self._id = None
-    self._is_password = True
+    self._is_password = False
     self._revoked_reason = None
     self._revoked_time = None
     self._certificate_begin_time = begin
@@ -74,7 +74,7 @@ class Certificate(object):
         g_sys_log.error('Unknown attribute from source "' + key + '"')
 
 # Getters methods
-  def __getattribute__(self, key):
+  def __getattr__(self, key):
     """Upgrade default getter to allow get semi-private attributes
     """
     try:

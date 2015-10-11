@@ -150,7 +150,7 @@ class Hostname(object):
         self.__l_certificate_expired.append(cert)
 
 # Getters methods
-  def __getattribute__(self, key):
+  def __getattr__(self, key):
     """Upgrade default getter to allow get semi-private attributes
     """
     try:
@@ -158,6 +158,16 @@ class Hostname(object):
     except AttributeError:
       pass
     return object.__getattribute__(self, key)
+
+  @property
+  def period_days(self):
+    """Return the number of day to use for new certificate
+
+    @return [int] the number of day new certificates will be certified for
+    """
+    if self._period_days <= 0:
+      return 30
+    return self._period_days
 
   @property
   def db(self):
@@ -253,6 +263,7 @@ class Hostname(object):
     """
     content = ("  HOSTNAME (" + str(self._id) + ")" +
                "\n    NAME = " + str(self._name) +
+               "\n    PERIOD (DAY) = " + str(self._period_days) +
                "\n    STATUS = " + str(self._is_enabled) +
                "\n    ONLINE STATUS = " + str(self._is_online) +
                "\n    CREATED ON = " + str(self._creation_time) +
@@ -272,11 +283,13 @@ class Hostname(object):
 
     @return [str] a formatted string that describe this hostname
     """
-    return ("[id({}), name({}), enable({}), createdon({}), updatedon({})," +
+    return ("[id({}), name({}), period({}), enable({})," +
+            " createdon({}), updatedon({})," +
             " certificate-sv({}), certificate-v({})," +
             " certificate-se({}), certificate-e({})").format(
         str(self._id),
         str(self._name),
+        str(self._period_days),
         str(self._is_enabled),
         str(self._creation_time),
         str(self._update_time),
