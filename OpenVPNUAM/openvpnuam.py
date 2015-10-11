@@ -154,37 +154,45 @@ class OpenVPNUAM(object):
     It provide the main service loop and today (in the latest version) it is
     launch automatically by start()
     """
-    try:
-      print("START")
+    db = Database(self.cp)
+    pki = PublicKeyInfrastructure(self.cp)
+    ev = EventReceiver(self.cp)
 
-      print("START DB")
-      db = Database(self.cp)
-      if not db.load():
-        print('ERROR CONFIG')
-      else:
-        print("OPEN DB")
-        if not db.open():
-          print('ERROR OPEN')
-        else:
-          print("TEST DB")
-          import time
-          import datetime
-          while True:
-            if db.getUserList() is None:
-              print("DATAAAA NONE")
-            else:
-              print("DATAAAA OK")
-            #for i in db.getUserList():
-            #  print(i)
-            print("########## " + str(datetime.datetime.today()))
-            time.sleep(4)
-          print("CLOSE DB")
-          db.close()
+# INIT, CHECK REQUIREMENT, LOADING
+    if not ev.load():
+      g_sys_log.fatal('Error during Event receiver loading')
+      return
+
+    if not db.load():
+      g_sys_log.fatal('Error during database loading')
+      return
+
+    if not pki.load():
+      g_sys_log.fatal('Error during PKI loading')
+      return
+
+    if not pki.checkRequirements():
+      g_sys_log.fatal('Error with PKI requirements')
+      return
+
+    # try to open database until it successfully open
+    while not db.open():
+      g_sys_log.error('Unable to access to database, wait for %s seconds',
+                      str(db.db_wait_time))
+      time.sleep(db.db_wait_time)
+
+# MAIN RUNTIME LOOP
+    try:
+
 
     except SystemExit:
       return
     except KeyboardInterrupt:
       g_sys_log.error('## Abnormal termination ##')
+    finally:
+      # close properly the database
+      if db.status == db.OPEN:
+        db.close()
 
   def stop(self):
     """Stop properly the server after signal received
