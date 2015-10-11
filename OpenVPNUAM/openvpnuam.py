@@ -28,17 +28,25 @@ This is the main class that contains the daemon
 """
 
 # System imports
+import datetime
 import logging
 import logging.handlers
 import os
 import signal
 import socket
 import sys
-
+import time
 
 # Projet Imports
-from .config import OVPNUAMConfigParser
-from .database import Database
+try:
+  from .config import OVPNUAMConfigParser
+  from .database import Database
+  from .pki import PublicKeyInfrastructure
+  from .event import EventReceiver
+except Exception as e:
+  print(str(e), file=sys.stderr)
+  print("A project's module failed to be import", file=sys.stderr)
+  sys.exit(1)
 
 # Global project declarations
 g_sys_log = logging.getLogger('openvpn-uam')
