@@ -281,6 +281,30 @@ class Connector(Adapter):
                 row[col] = int(row[col])
     return sttm
 
+  @staticmethod
+  def extractModelFromRequest(req):
+    """Extract the Table model from a request
+
+    @param req [Database.DbRequest] the request from which to try to extract the
+                model
+    @return [TableModel] the table model corresponding to the source
+      of request
+            None if model doesn't exist
+    """
+    # try to read model that belong to
+    if req.source_type == 'User':
+      return TableUser
+    elif req.source_type == 'Hostname':
+      return TableHostname
+    elif req.source_type == 'Certificate':
+      return TableUserCertificate
+    else:
+      req.is_error = True
+      req.error_msg = "Not implemented source request"
+      return None
+
+
+# API
   def getUserList(self):
     """Query the database to retrieve the list of user with theirs hostnames
 
@@ -393,19 +417,16 @@ class Connector(Adapter):
     """
     assert type(up).__name__ == 'DbUpdate'
 
-    model = None
-    # try to read model that belong to
-    if up.target_type == 'User':
-      model = TableUser
-    elif up.target_type == 'Hostname':
-      model = TableHostname
-    elif up.target_type == 'Certificate':
-      model = TableUserCertificate
-    else:
-      up.is_error = True
-      up.error_msg = "Not implemented update request"
+    model = Connector.extractModelFromRequest(up)
+    if not model:
       return False
     assert model is not None
+
+    # don't update primary key
+    if up.field == 'id':
+      g_sys_log.warning("Mysql adapter disallow id update")
+      return True
+
     # check field exist in model
     if up.field not in model.getColumnOptions():
       up.is_error = True
@@ -417,7 +438,7 @@ class Connector(Adapter):
         'UPDATE ' + model.getName() +
         ' SET ' + model.quote(up.field) + " = %s"
         ' WHERE ' + model.getPrimary() + " = %s",
-        (up.value, up.target.id))
+        (up.value, up.source.id))
     # check MySQL error
     if cur is None:
       if self.__connection:
@@ -431,6 +452,64 @@ class Connector(Adapter):
         cur.close()
         self.__connection.rollback()
         return False
+    cur.close()
+    # Commit to validate modification
+    self.__connection.commit()
+    return True
+
+  def processInsert(self, ins):
+    """Treat an insert request
+
+    @param ins [Database.DbInsert] the instance of insert which contains
+      all parameters field
+    @return [bool] : the result of the operation
+          True if update success
+          False if not
+    """
+    assert type(ins).__name__ == 'DbInsert'
+
+    model = Connector.extractModelFromRequest(ins)
+    if not model:
+      return False
+    assert model is not None
+
+    heads_col = ""
+    heads_val = ""
+    values = dict()
+    cols_opts = model.getColumnOptions()
+
+    # treat all column from model
+    for col in cols_opts:
+      name = col
+      if 'rename' in cols_opts[col]:
+        name = cols_opts[col]['rename']
+      if hasattr(ins.source, name):
+        if getattr(ins.source, name) is not None:
+          heads_col += " " + name
+          heads_val += " %(" + name + ")s"
+          values[name] = getattr(ins.source, name)
+    # treat an optionnal foreign key
+    if ins.parent:
+      name = model.getForeign()
+      heads_col += " " + name
+      heads_val += " %(" + name + ")s"
+      values[name] = ins.parent.id
+
+    # EXECUTE INSERT QUERY
+    cur = self.__queryDict(
+        'INSERT INTO ' + model.getName() +
+        " (" + model.quote(heads_col) + ")" +
+        " VALUES (" + model.quote(heads_val, "") + ")",
+        values)
+    # check MySQL error
+    if cur is None:
+      if self.__connection:
+        self.__connection.rollback()
+      return False
+
+    if ins.source.id is None:
+      ins.source.id = cur.lastrowid
+
     cur.close()
     # Commit to validate modification
     self.__connection.commit()

@@ -30,7 +30,7 @@ from .Template import Table
 
 class TableUserCertificate(Table):
   table = 'user_certificate'
-  primary = 'id_certificate'
+  primary = 'id_user_certificate'
   foreign = 'fk_hostname_id'
   column_options = {'id_user_certificate': {'type': int, 'rename': 'id'},
                     'fk_hostname_id': {'type': int, 'hide': True},
