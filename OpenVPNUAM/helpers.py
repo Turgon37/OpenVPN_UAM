@@ -45,3 +45,39 @@ def helper_log_fatal(logger, file='error'):
   error_out.close()
   logger.error('FATAL ERROR : contact developer and send him the file "' +
                file + '"')
+
+
+def datetimeToGeneralizedTime(date):
+  """Convert a datetime instance to a date in GeneralizedFormat
+  
+  @param date [datetime] the datetime in input
+  @return [str] the date in GeneralizedFormat
+  """
+  return date.strftime("%Y%m%d%H%M%SZ")
+
+  
+def datetimeToGeneralizedTimeB(date):
+  """Convert a datetime instance to a date in GeneralizedFormat
+  
+  @param date [datetime] the datetime in input
+  @return [bytes] the date in GeneralizedFormat compild in bytes object
+  """
+  return datetimeToGeneralizedTime(date).encode()
+  
+  
+def generalizedTimeToDatetime(string):
+  """Convert a date in GeneralizedFormat to a datetime instance
+  
+  @param string [str] the date in GeneralizedFormat
+  @return [datetime] the datetime instance
+  """
+  return datetime.datetime.strptime(string, "%Y%m%d%H%M%SZ")
+
+  
+def generalizedTimeToDatetimeB(bytes_):
+  """Convert a date in GeneralizedFormat to a datetime instance
+  
+  @param bytes [bytes] the date in bytes compiled GeneralizedFormat
+  @return [datetime] the datetime instance
+  """
+  return generalizedTimeToDatetime(bytes_.decode())
