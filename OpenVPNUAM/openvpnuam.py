@@ -100,7 +100,7 @@ class OpenVPNUAM(object):
                       False otherwise
     """
     # Restreint access to only owner
-    os.umask(0x0077)
+    os.umask(0o0077)
 
     # Installing signal catching function
     signal.signal(signal.SIGTERM, self.__sigTERM_handler)
