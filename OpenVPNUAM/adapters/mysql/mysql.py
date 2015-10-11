@@ -376,7 +376,7 @@ class Connector(Adapter):
       # loop over each certificates
       for l in cur:
         assert 'id' in l
-        c = Model.Certificate()
+        c = Model.Certificate(None, None)
         c.load(l)
         l_cert.append(c)
     cur.close()
@@ -416,7 +416,7 @@ class Connector(Adapter):
     cur = self.__queryDict(
         'UPDATE ' + model.getName() +
         ' SET ' + model.quote(up.field) + " = %s"
-        ' WHERE ' + model.getPrimary() + ' = %s',
+        ' WHERE ' + model.getPrimary() + " = %s",
         (up.value, up.target.id))
     # check MySQL error
     if cur is None:
