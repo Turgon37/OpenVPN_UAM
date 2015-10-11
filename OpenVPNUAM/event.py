@@ -113,8 +113,8 @@ class EventReceiver(object):
           return False
 
         if not self.__cp.has_section(hdlr.name):
-          g_sys_log.error("Handler '%s' require a configuration section with " +
-                          "the same name", hdlr.name)
+          g_sys_log.error("Handler '%s' require a configuration section " +
+                          "with the same name", hdlr.name)
           return False
         hdlr.logger = logging.getLogger('openvpn-uam.event.' + hdlr.name)
         hdlr.configuration = self.__cp.getItems(hdlr.name)
@@ -125,8 +125,8 @@ class EventReceiver(object):
           g_sys_log.error("Handler '%s' require a missing parameter. %s",
                           hdlr.name, str(e))
 
-        g_sys_log.debug("Handler '%s' loaded with CAP %s",
-                        hdlr.name, hdlr.capabilities)
+        g_sys_log.info("Using event handler '%s' with CAP %s",
+                       hdlr.name, hdlr.capabilities)
         if BaseHandler.CAP.CAP_FILE in hdlr.capabilities:
           have_file_cap = True
         self.__l_handler.append(hdlr)

@@ -270,7 +270,7 @@ class Database(object):
     try:
       name = self.__cp.getItems(self.__cp.DATABASE_SECTION)['adapter']
     except KeyError:
-      g_sys_log.error("Missing 'adapter' item in '%s' section of configuration",
+      g_sys_log.fatal("Missing 'adapter' item in '%s' section of configuration",
                       self.__cp.DATABASE_SECTION)
       return False
     adapter = None
@@ -280,25 +280,28 @@ class Database(object):
       mod = __import__('OpenVPNUAM.adapters.' + name, fromlist=['Connector'])
       adapter = mod.Connector()
     except ImportError as e:
-      g_sys_log.error("Adapter '%s' cannot be found in adapters/ directory. %s",
+      g_sys_log.fatal("Adapter '%s' cannot be found in adapters/ directory. %s",
                       name,
                       str(e))
       return None
     except AttributeError as e:
-      g_sys_log.error("Adapter '%s' must use Connector as class name. %s",
+      g_sys_log.fatal("Adapter '%s' must use Connector as class name. %s",
                       name,
                       str(e))
       return None
+    except Exception as e:
+      g_sys_log.fatal("Adapter '%s' failed to be load. %s", name, str(e))
+      return None
+
     # adapter class checking
     if not isinstance(adapter, Adapter):
-      g_sys_log.error("Adapter '%s' must extend Adapter class", name)
+      g_sys_log.fatal("Adapter '%s' must extend Adapter class", name)
       return None
 
     # adapter class name checking
     if adapter.name != name:
       g_sys_log.error("Adapter name '%s' doesn't match with class name %s",
-                      adapter.name,
-                      name)
+                      adapter.name, name)
       return None
 
     if not self.__cp.has_section(adapter.name):
@@ -311,9 +314,9 @@ class Database(object):
         return None
     except KeyError as e:
       g_sys_log.error("Adapter '%s' required a missing parameter. %s",
-                      name,
-                      str(e))
+                      name, str(e))
       return None
+    g_sys_log.info("Using database adapter '%s'", name)
     return adapter
 
   def open(self):
