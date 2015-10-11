@@ -46,6 +46,89 @@ from .adapters import Adapter
 g_sys_log = logging.getLogger('openvpn-uam.database')
 
 
+class DbRequest(object):
+  """This class represent a unique field update
+
+  An update query to database is first represented by an instance of this
+  class
+  """
+  NO_CHANGE_CONSTRAINT = -1
+
+  def __init__(self):
+    self.__expected_change = self.NO_CHANGE_CONSTRAINT
+    self.__last_update = None
+    self.__error = False
+    self.__error_msg = None
+
+  @property
+  def expected_change(self):
+    """Get the expected number of rows
+
+    @return [int] : the number of row expected
+    """
+    return self.__expected_change
+
+  @property
+  def is_error(self):
+    """Return the error state of this update
+
+    @return [bool] : the error status
+    """
+    return self.__error
+
+  @property
+  def error_msg(self):
+    """Return the error explanation
+
+    @return [str] : the error description if available
+    """
+    return self.__error_msg
+
+# Setters
+  @expected_change.setter
+  def expected_change(self, num):
+    """Set the expected number of rows
+
+    @param num [int] : the number of row expected
+    """
+    self.__expected_change = num
+
+  @is_error.setter
+  def is_error(self, state):
+    """Set the error state for this update
+
+    @param state [bool] the new error state of this update
+    """
+    assert isinstance(state, bool)
+    self.__error = state
+
+  @error_msg.setter
+  def error_msg(self, msg):
+    """Set the error explanation
+
+    @param msg [str] : the error description
+    """
+    assert isinstance(msg, str)
+    self.__error_msg = msg
+
+# API
+  def update(self):
+    """Update the time of the last adapter push
+    """
+    self.__last_update = time.time()
+
+  def hasToBeUpdated(self):
+    """Indicates if the current DbUpdate must be push to the adapter
+
+    @return [bool] the 'toBeUpdatedStatus' of this update query
+    """
+    # if none => must be updated
+    if self.__last_update is None:
+      return True
+    else:
+      return (time.time() - self.__last_update) >= 30
+
+
 class Database(object):
   """Build an instance of the model program class
   """
@@ -56,13 +139,7 @@ class Database(object):
   OPEN = 1
 
 # # INSTANCE OF UPDATE REQUEST
-  class DbUpdate(object):
-    """This class represent a unique field update
-
-    An update query to database is first represented by an instance of this
-    class
-    """
-    NO_CHANGE_CONSTRAINT = -1
+  class DbUpdate(DbRequest):
 
     def __init__(self, field, value, obj):
       """This build a update request
@@ -71,13 +148,10 @@ class Database(object):
       @param value [mixed base type] the new value for the field above
       @param obj [object] the model instance to use as reference
       """
+      DbRequest.__init__(self)
       self.__field = field
       self.__value = value
       self.__reference = obj
-      self.__expected_change = self.NO_CHANGE_CONSTRAINT
-      self.__last_update = None
-      self.__error = False
-      self.__error_msg = None
 
 # Getters
     @property
@@ -112,74 +186,6 @@ class Database(object):
       """
       return type(self.target).__name__
 
-    @property
-    def expected_change(self):
-      """Get the expected number of rows
-
-      @return [int] : the number of row expected
-      """
-      return self.__expected_change
-
-    @property
-    def is_error(self):
-      """Return the error state of this update
-
-      @return [bool] : the error status
-      """
-      return self.__error
-
-    @property
-    def error_msg(self):
-      """Return the error explanation
-
-      @return [str] : the error description if available
-      """
-      return self.__error_msg
-
-# Setters
-    @expected_change.setter
-    def expected_change(self, num):
-      """Set the expected number of rows
-
-      @param num [int] : the number of row expected
-      """
-      self.__expected_change = num
-
-    @is_error.setter
-    def is_error(self, state):
-      """Set the error state for this update
-
-      @param state [bool] the new error state of this update
-      """
-      assert isinstance(state, bool)
-      self.__error = state
-
-    @error_msg.setter
-    def error_msg(self, msg):
-      """Set the error explanation
-
-      @param msg [str] : the error description
-      """
-      assert isinstance(msg, str)
-      self.__error_msg = msg
-
-# API
-    def update(self):
-      """Update the time of the last adapter push
-      """
-      self.__last_update = time.time()
-
-    def hasToBeUpdated(self):
-      """Indicates if the current DbUpdate must be push to the adapter
-
-      @return [bool] the 'toBeUpdatedStatus' of this update query
-      """
-      # if none => must be updated
-      if self.__last_update is None:
-        return True
-      else:
-        return (time.time() - self.__last_update) >= 30
-
 # Tools
     def __str__(self):
       """Return a basic definition of this update query as string
@@ -189,7 +195,6 @@ class Database(object):
       return (self.target_type +
               "(" + str(self.target.id) + ")" +
               "['" + self.field + "'] = " + str(self.value))
-
 # # //INSTANCE OF UPDATE REQUEST
 
   def __init__(self, confparser):
