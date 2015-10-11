@@ -131,13 +131,18 @@ class PKIFileTree(object):
     f.write(content)
     f.close()
 
-  def storePKIUserCertificate(self, user, hostname, certificate, obj):
+  def storePKIUserCertificate(self, user, hostname, certificate, obj,
+                              password=None):
     """Store a given PKI object into a file
 
     @param user [User] the user to which the certificate is associated
     @param hostname [Hostname] the hostname to which the certificate is
                               associated
+    @param certificate [Certificate] the Certificate instance associated with
+                        the file
     @param obj [X509/PKey] The object that will be dump to the file
+    @param password [str] OPTIONNAL : an optionnal passphrase to use for encrypt
+          the output (if available)
     """
     path = (self.__new_cert_directory + str(user.id) + "/" + str(hostname.id) +
             "/")
@@ -147,8 +152,15 @@ class PKIFileTree(object):
     if isinstance(obj, OpenSSL.crypto.X509):
       bytes_ = crypto.dump_certificate(crypto.FILETYPE_PEM, obj)
       path += str(certificate.id) + ".crt"
+    if isinstance(obj, OpenSSL.crypto.X509Req):
+      bytes_ = crypto.dump_certificate_request(crypto.FILETYPE_PEM, obj)
+      path += str(certificate.id) + ".csr"
     elif isinstance(obj, OpenSSL.crypto.PKey):
-      bytes_ = crypto.dump_privatekey(crypto.FILETYPE_PEM, obj)
+      if isinstance(password, str):
+        bytes_ = crypto.dump_privatekey(crypto.FILETYPE_PEM, obj,
+                                        self.__cipher, password.encode())
+      else:
+        bytes_ = crypto.dump_privatekey(crypto.FILETYPE_PEM, obj)
       path += str(certificate.id) + ".key"
     assert bytes_ is not None
     self.storeBytesToFile(bytes_, path)

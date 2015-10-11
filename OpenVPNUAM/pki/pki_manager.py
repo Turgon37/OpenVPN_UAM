@@ -47,6 +47,7 @@ except ImportError:
 from .pki_filetree import PKIFileTree
 from .. import models as Model
 from ..config import Error
+from ..helpers import *
 
 # Global project declarations
 g_sys_log = logging.getLogger('openvpn-uam.pki')
@@ -207,33 +208,64 @@ class PublicKeyInfrastructure(object):
     """
     g_sys_log.debug("Building a new certificate for Hostname(%s) '%s'",
                     hostname.id, hostname.name)
+    today = datetime.datetime.utcnow()
 
-    # build a new key for the given username
+    # BUILD PRIVATE KEY
     g_sys_log.debug("Generate a %s bits RSA Private Key", self.__cert_key_size)
     key = OpenSSL.crypto.PKey()
     key.generate_key(OpenSSL.crypto.TYPE_RSA, self.__cert_key_size)
 
+    # BUILD CERTIFICATE SIGNING REQUEST
+    g_sys_log.debug("Generate a X509 request")
+    req = OpenSSL.crypto.X509Req()
+    req.get_subject().C = self.__certificate_authority.get_subject().C
+    req.get_subject().ST = self.__certificate_authority.get_subject().ST
+    req.get_subject().L = self.__certificate_authority.get_subject().L
+    req.get_subject().O = self.__certificate_authority.get_subject().O
+    req.get_subject().OU = self.__certificate_authority.get_subject().OU
+    req.get_subject().CN = user.cuid + "_" + hostname.name
+    req.get_subject().emailAddress = user.user_mail
+    req.get_subject().name = (user.cuid + "_" + hostname.name + "_" +
+                              str(today))
+    req.set_pubkey(key)
+    req.sign(key, "sha512")
+
+    # BUILD CERTIFICATE
     g_sys_log.debug("Generate a X509 certificate")
     cert = OpenSSL.crypto.X509()
-    cert.get_subject().C = self.__certificate_authority.get_subject().C
-    cert.get_subject().ST = self.__certificate_authority.get_subject().ST
-    cert.get_subject().L = self.__certificate_authority.get_subject().L
-    cert.get_subject().O = self.__certificate_authority.get_subject().O
-    cert.get_subject().OU = self.__certificate_authority.get_subject().OU
-    cert.get_subject().CN = user.cuid + "_" + hostname.name
-    cert.get_subject().emailAddress = user.user_mail
-    cert.get_subject().name = (user.cuid + "_" + hostname.name + "_" +
-                               str(datetime.datetime.today()))
-
-    cert.set_notBefore(b"20000101000000Z")
-    cert.set_notAfter(b"20200101000000Z")
-
-    cert.set_serial_number(0)
+    cert.gmtime_adj_notBefore(0)
+    cert.gmtime_adj_notAfter(60*60*24*365)
+    #cert.set_notBefore(datetimeToGeneralizedTimeB(today))
+    #cert.set_notAfter(
+  #      datetimeToGeneralizedTimeB(
+  #          today + datetime.timedelta(days=hostname.period_days)
+#        ))
+    # build certificate model
+    m_cert = Model.Certificate(
+        generalizedTimeToDatetimeB(cert.get_notBefore()),
+        generalizedTimeToDatetimeB(cert.get_notAfter()))
+    # ask the hostname to register the new certificate
+    if not hostname.addCertificate(m_cert) or m_cert.id is None:
+      g_sys_log.error("Hostname unable to insert new certificate with" +
+                      " the configured adapter.")
+      return
+    cert.set_serial_number(m_cert.id)
     cert.set_issuer(self.__certificate_authority.get_subject())
-    cert.set_pubkey(key)
-    #cert.sign(cakey, "sha1")
+    cert.set_subject(req.get_subject())
+    cert.set_pubkey(req.get_pubkey())
+    cert.sign(self.__certificate_authority_key, "sha512")
 
-    m_cert = Model.Certificate(cert.get_notBefore(), cert.get_notAfter())
-    
-    self.__ft.storePKIUserCertificate(user, hostname, m_cert, key)
+    if user.password_mail is not None:
+      m_cert.is_password = True
+      # generate a random password
+      password = "coucou"
+    elif user.certificate_password is not None:
+      m_cert.is_password = True
+      # use configured password
+      password = user.certificate_password
+    else:
+      password = None
+
+    self.__ft.storePKIUserCertificate(user, hostname, m_cert, key, password)
+    self.__ft.storePKIUserCertificate(user, hostname, m_cert, req)
     self.__ft.storePKIUserCertificate(user, hostname, m_cert, cert)
