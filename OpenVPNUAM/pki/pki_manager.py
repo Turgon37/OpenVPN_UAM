@@ -166,7 +166,8 @@ class PublicKeyInfrastructure(object):
     return True
 
 # TOOLS
-  def loadCertificate(self, path):
+  @staticmethod
+  def loadCertificate(path):
     """Import an existing certificate from file to python object
 
     @param path [str] : the path to the certificate file to import
@@ -182,23 +183,23 @@ class PublicKeyInfrastructure(object):
       g_sys_log.error('Unable to open certificate file : ' + str(e))
       return None
 
-    lib_crypto = OpenSSL.crypto
     try:
       # try to load the cert as PEM format
-      cert = lib_crypto.load_certificate(lib_crypto.FILETYPE_PEM, f_cert)
-    except lib_crypto.Error as e:
+      cert = crypto.load_certificate(crypto.FILETYPE_PEM, f_cert)
+    except crypto.Error as e:
       # if error try with another format
       try:
         # try to load the cert as ASN1 format
-        cert = lib_crypto.load_certificate(lib_crypto.FILETYPE_ASN1, f_cert)
+        cert = crypto.load_certificate(crypto.FILETYPE_ASN1, f_cert)
         g_sys_log.warning('Certificate "%s" is not in PEM recommanded format',
                           path)
-      except lib_crypto.Error as e:
+      except crypto.Error as e:
         g_sys_log.error('Unable to import certificate : ' + str(e))
         return None
     return cert
 
-  def loadPrivateKey(self, path):
+  @staticmethod
+  def loadPrivateKey(path):
     """Import an private key from file to python object
 
     @param path [str] : the path to the private key file to import
@@ -301,13 +302,16 @@ class PublicKeyInfrastructure(object):
     # BUILD CERTIFICATE
     g_sys_log.debug("Generate a X509 certificate")
     cert = OpenSSL.crypto.X509()
-    cert.gmtime_adj_notBefore(0)
-    cert.gmtime_adj_notAfter(60*60*24*365)
-    #cert.set_notBefore(datetimeToGeneralizedTimeB(today))
-    #cert.set_notAfter(
-  #      datetimeToGeneralizedTimeB(
-  #          today + datetime.timedelta(days=hostname.period_days)
-#        ))
+    cert.set_version(2)
+    #cert.gmtime_adj_notBefore(0)
+    #cert.gmtime_adj_notAfter(60*60*24*365)
+    cert.set_notBefore(datetimeToGeneralizedTimeB(today))
+    cert.set_notAfter(
+        datetimeToGeneralizedTimeB(
+            today + datetime.timedelta(days=hostname.period_days)
+        ))
+    # /BUILD CERTIFICATE
+
     # build certificate model
     m_cert = Model.Certificate(
         generalizedTimeToDatetimeB(cert.get_notBefore()),
