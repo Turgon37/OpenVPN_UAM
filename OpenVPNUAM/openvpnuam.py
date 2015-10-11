@@ -57,22 +57,20 @@ class OpenVPNUAM(object):
 
   This instance must be configured with load() before launched by start() call
   At least it require a configuration file to load some needed settings
-  This program can be daemonized or not(the default) according to the parameters
-  given during instanciation to constructor
+  This program can be daemonized or not(the default) according to the
+  parameters given during instanciation to constructor
   """
 
   def __init__(self, daemon=False, log_level='INFO'):
     """Constructor : Build the program lead object
 
-    @param daemon [boolean] : if the server must be daemonized (False)
-    @param log_level [string] : the system minimum logging level for put log
+    @param daemon [bool] : if the server must be daemonized (False)
+    @param log_level [str] : the system minimum logging level for put log
                                 message
     """
     # config parser
     self.cp = OVPNUAMConfigParser()
-
     self.is_daemon = daemon
-    # Local entities
 
     # log parameters
     self.__log_level = None
@@ -118,7 +116,7 @@ class OpenVPNUAM(object):
       if self.__daemonize():
         g_sys_log.info('Daemon started')
       else:
-        g_sys_log.error('Could not create daemon')
+        g_sys_log.fatal('Could not create daemon')
         raise Exception('Could not create daemon')
 
     # Check pidfile
@@ -126,7 +124,7 @@ class OpenVPNUAM(object):
       pid_path = self.cp.getPidPath()
     # Create the pid file
     try:
-      g_sys_log.debug("Creating PID file %s", pid_path)
+      g_sys_log.debug("Creating PID file '%s'", pid_path)
       pid_file = open(pid_path, 'w')
       pid_file.write(str(os.getpid()) + '\n')
       pid_file.close()
@@ -314,14 +312,14 @@ class OpenVPNUAM(object):
   def setLogLevel(self, value):
     """Set the logging level.
 
-    @param(CONSTANT) value : the log level according to syslog
+    @param value CONSTANT : the log level according to syslog
        CRITICAL
        ERROR
        WARNING
        NOTICE
        INFO
        DEBUG
-    @return[boolean] : True if set success
+    @return [bool] : True if set success
                         False otherwise
     """
     if self.__log_level == value:
@@ -339,22 +337,24 @@ class OpenVPNUAM(object):
     """Sets the logging target
 
     target can be a file, SYSLOG, STDOUT or STDERR.
-    @param(string) target : the logging target
+    @param target [str] : the logging target
       STDOUT
       SYSLOG
       STDERR
       file path
-    @return(boolean) : True if set success
-                        False otherwise Set the log target of the logging system
+    @return [bool] : True if set success
+                       False otherwise Set the log target of the logging system
     """
     if self.__log_target == target:
       return True
 
     # set a format which is simpler for console use
-    formatter = logging.Formatter("%(asctime)s %(name)-24s[%(process)d]: %(levelname)-7s %(message)s")
+    formatter = logging.Formatter(
+        "%(asctime)s %(name)-24s[%(process)d]: %(levelname)-7s %(message)s")
     if target == "SYSLOG":
       # Syslog daemons already add date to the message.
-      formatter = logging.Formatter("%(name)s[%(process)d]: %(levelname)s %(message)s")
+      formatter = logging.Formatter(
+          "%(name)s[%(process)d]: %(levelname)s %(message)s")
       facility = logging.handlers.SysLogHandler.LOG_DAEMON
       hdlr = logging.handlers.SysLogHandler("/dev/log", facility=facility)
     elif target == "STDOUT":
