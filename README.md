@@ -2,7 +2,7 @@
 
 This project is licensed under the terms of the MIT license
 
-Not yet available
+:warning: **Don’t use this project it's still in development** 
 
 
 A python3 daemon that manage users's access to OpenVPN service.
